@@ -55,7 +55,8 @@
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; overflow: hidden; background: var(--bg); }
   body { font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif; color: var(--ink); font-size: 16px; -webkit-font-smoothing: antialiased; overscroll-behavior: none; }
-  #app { height: var(--app-height, 100%); display: flex; flex-direction: column; padding-top: var(--safe-top); transition: height .15s ease-out; max-width: 640px; margin: 0 auto; }
+  /* iPhone でキーボードが出たとき、画面がずれて真っ白にならないよう、見えている範囲（visualViewport）にぴったり固定する */
+  #app { position: fixed; left: 0; right: 0; top: var(--app-top, 0px); height: var(--app-height, 100%); display: flex; flex-direction: column; padding-top: var(--safe-top); max-width: 640px; margin: 0 auto; }
 
   /* 見出し */
   .top { display: flex; align-items: center; gap: 8px; padding: 14px 12px 10px 16px; min-height: 60px; }
@@ -118,7 +119,7 @@
   body.view-done .composer, body.view-trash .composer, body.view-done .seg, body.view-trash .seg { display: none; }
 
   /* トースト（上：キーボードに隠れない） */
-  .toast { position: fixed; left: 50%; top: calc(var(--safe-top) + 64px); transform: translateX(-50%) translateY(-12px); opacity: 0; pointer-events: none; background: #1C2235; color: #fff; border-radius: 12px; padding: 10px 10px 10px 16px; font-size: 14px; display: flex; align-items: center; gap: 12px; transition: all .25s; z-index: 50; white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+  .toast { position: fixed; left: 50%; top: calc(var(--app-top, 0px) + var(--safe-top) + 64px); transform: translateX(-50%) translateY(-12px); opacity: 0; pointer-events: none; background: #1C2235; color: #fff; border-radius: 12px; padding: 10px 10px 10px 16px; font-size: 14px; display: flex; align-items: center; gap: 12px; transition: all .25s; z-index: 50; white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
   .toast button { border: 0; background: rgba(255,255,255,.16); color: var(--amber); font: inherit; font-weight: 700; font-size: 13px; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
   .toast button:empty { display: none; }
@@ -213,7 +214,7 @@
   const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
 
   // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
-  const APP_VERSION = '1.1.0';
+  const APP_VERSION = '1.1.1';
 
   // ---------- 状態 ----------
   // item: { id, title, fav, createdAt, updatedAt, status: undefined(=受け箱) | 'done' | 'trash', doneAt, trashedAt }
@@ -533,8 +534,17 @@
   function setupViewportTracking() {
     const vv = window.visualViewport; if (!vv) return;
     const root = document.documentElement; let baseHeight = vv.height;
-    function apply() { root.style.setProperty('--app-height', vv.height + 'px'); document.body.classList.toggle('keyboard-open', vv.height < baseHeight - 120); }
-    vv.addEventListener('resize', apply); vv.addEventListener('scroll', apply);
+    function apply() {
+      root.style.setProperty('--app-height', vv.height + 'px');
+      root.style.setProperty('--app-top', vv.offsetTop + 'px');
+      document.body.classList.toggle('keyboard-open', vv.height < baseHeight - 120);
+    }
+    // キーボードが出るとき iOS がページを上にずらすので、元に戻してから合わせ直す
+    function settle() { if (window.scrollY) window.scrollTo(0, 0); apply(); }
+    vv.addEventListener('resize', settle); vv.addEventListener('scroll', apply);
+    window.addEventListener('scroll', settle);
+    document.addEventListener('focusin', () => { [0, 100, 350, 700].forEach((t) => setTimeout(settle, t)); });
+    document.addEventListener('focusout', () => { setTimeout(settle, 100); setTimeout(settle, 400); });
     window.addEventListener('orientationchange', () => { setTimeout(() => { baseHeight = vv.height; apply(); }, 300); });
     apply();
   }
