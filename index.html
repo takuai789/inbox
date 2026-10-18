@@ -214,7 +214,7 @@
   const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
 
   // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
-  const APP_VERSION = '1.1.1';
+  const APP_VERSION = '1.1.2';
 
   // ---------- 状態 ----------
   // item: { id, title, fav, createdAt, updatedAt, status: undefined(=受け箱) | 'done' | 'trash', doneAt, trashedAt }
@@ -533,19 +533,27 @@
   // ---------- visualViewport（キーボード対策） ----------
   function setupViewportTracking() {
     const vv = window.visualViewport; if (!vv) return;
-    const root = document.documentElement; let baseHeight = vv.height;
+    const root = document.documentElement; let baseHeight = vv.height, lastH = -1, lastT = -1;
+    // アプリ全体を「いま見えている範囲」（キーボードの上）にぴったり重ねる
     function apply() {
-      root.style.setProperty('--app-height', vv.height + 'px');
-      root.style.setProperty('--app-top', vv.offsetTop + 'px');
-      document.body.classList.toggle('keyboard-open', vv.height < baseHeight - 120);
+      const h = Math.round(vv.height), t = Math.max(0, Math.round(vv.offsetTop));
+      if (h !== lastH) { root.style.setProperty('--app-height', h + 'px'); lastH = h; }
+      if (t !== lastT) { root.style.setProperty('--app-top', t + 'px'); lastT = t; }
+      document.body.classList.toggle('keyboard-open', h < baseHeight - 120);
     }
-    // キーボードが出るとき iOS がページを上にずらすので、元に戻してから合わせ直す
-    function settle() { if (window.scrollY) window.scrollTo(0, 0); apply(); }
-    vv.addEventListener('resize', settle); vv.addEventListener('scroll', apply);
-    window.addEventListener('scroll', settle);
-    document.addEventListener('focusin', () => { [0, 100, 350, 700].forEach((t) => setTimeout(settle, t)); });
-    document.addEventListener('focusout', () => { setTimeout(settle, 100); setTimeout(settle, 400); });
-    window.addEventListener('orientationchange', () => { setTimeout(() => { baseHeight = vv.height; apply(); }, 300); });
+    // iPhone はキーボードの出入りで見える範囲を少しずつ動かし、そのたびに通知が来ないことがあるので、
+    // 入力中（とその前後）は毎フレーム追いかける
+    let until = 0, looping = false;
+    function follow(ms) {
+      until = Math.max(until, performance.now() + ms);
+      if (looping) return; looping = true;
+      const tick = () => { apply(); const typing = document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName); if (typing || performance.now() < until) requestAnimationFrame(tick); else looping = false; };
+      requestAnimationFrame(tick);
+    }
+    vv.addEventListener('resize', () => follow(600)); vv.addEventListener('scroll', () => follow(600));
+    document.addEventListener('focusin', () => follow(1200));
+    document.addEventListener('focusout', () => follow(1200));
+    window.addEventListener('orientationchange', () => { setTimeout(() => { baseHeight = vv.height; follow(600); }, 300); });
     apply();
   }
 
