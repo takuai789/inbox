@@ -62,7 +62,7 @@
   .row .inner { position: relative; z-index: 1; background: var(--card); display: flex; align-items: center; gap: 10px; padding: 12px 8px 12px 16px; min-height: 52px; touch-action: pan-y; transition: transform .22s ease; }
   .row .inner.drag { transition: none; }
   .row .t { flex: 1; min-width: 0; font-size: 16px; line-height: 1.5; word-break: break-word; white-space: pre-wrap; }
-  .row .edit { flex: 1; min-width: 0; font: inherit; font-size: 16px; line-height: 1.5; border: 0; outline: none; background: rgba(245,185,66,.12); border-radius: 8px; padding: 4px 8px; margin: -4px -8px; color: var(--ink); resize: none; }
+  .row .edit { flex: 1; min-width: 0; font: inherit; font-size: 16px; line-height: 1.5; border: 0; outline: none; background: rgba(245,185,66,.14); border-radius: 8px; padding: 4px 8px; margin: -4px -8px; color: var(--ink); -webkit-appearance: none; appearance: none; -webkit-user-select: text; user-select: text; }
   .row .star { flex-shrink: 0; width: 40px; height: 40px; border: 0; background: none; cursor: pointer; color: var(--tertiary); display: flex; align-items: center; justify-content: center; }
   .row .star svg { width: 22px; height: 22px; }
   .row.fav .star { color: var(--amber); }
@@ -72,15 +72,15 @@
   .empty b { display: block; font-size: 34px; margin-bottom: 6px; }
 
   /* 入力欄（下・親指の位置） */
-  .composer { padding: 10px 12px calc(var(--safe-bottom) + 10px); background: rgba(244,242,238,.94); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: .5px solid var(--sep); display: flex; gap: 8px; align-items: flex-end; }
+  .composer { flex-shrink: 0; padding: 10px 12px calc(var(--safe-bottom) + 10px); background: rgba(244,242,238,.94); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: .5px solid var(--sep); display: flex; gap: 8px; align-items: center; }
   body.keyboard-open .composer { padding-bottom: 10px; }
-  .composer textarea { flex: 1; min-width: 0; font: inherit; font-size: 16px; line-height: 1.45; border: 1px solid var(--sep); background: var(--card); border-radius: 20px; padding: 9px 16px; outline: none; resize: none; max-height: 120px; color: var(--ink); }
-  .composer textarea:focus { border-color: rgba(46,58,89,.4); }
+  .composer input { flex: 1; min-width: 0; height: 40px; font: inherit; font-size: 16px; border: 1px solid var(--sep); background: var(--card); border-radius: 20px; padding: 0 16px; outline: none; color: var(--ink); -webkit-appearance: none; appearance: none; -webkit-user-select: text; user-select: text; }
+  .composer input:focus { border-color: rgba(46,58,89,.4); }
   .composer .add { flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--navy); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity .15s; }
   .composer .add:disabled { opacity: .3; }
 
   /* トースト */
-  .toast { position: fixed; left: 50%; bottom: calc(var(--safe-bottom) + 76px); transform: translateX(-50%) translateY(20px); opacity: 0; pointer-events: none; background: var(--ink); color: #fff; border-radius: 12px; padding: 10px 10px 10px 16px; font-size: 14px; display: flex; align-items: center; gap: 12px; transition: all .25s; z-index: 50; white-space: nowrap; }
+  .toast { position: fixed; left: 50%; top: calc(var(--safe-top) + 64px); transform: translateX(-50%) translateY(-12px); opacity: 0; pointer-events: none; background: var(--ink); color: #fff; border-radius: 12px; padding: 10px 10px 10px 16px; font-size: 14px; display: flex; align-items: center; gap: 12px; transition: all .25s; z-index: 50; white-space: nowrap; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
   .toast button { border: 0; background: rgba(255,255,255,.16); color: var(--amber); font: inherit; font-weight: 700; font-size: 13px; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
   .toast button:empty { display: none; }
@@ -119,7 +119,7 @@
   </div>
   <div class="list" id="list"></div>
   <form class="composer" id="composer">
-    <textarea id="input" rows="1" placeholder="気になったこと・やること" enterkeyhint="done" autocomplete="off"></textarea>
+    <input id="input" type="text" placeholder="気になったこと・やること" enterkeyhint="send" autocomplete="off" autocorrect="off" />
     <button class="add" id="addBtn" type="submit" aria-label="追加" disabled>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>
     </button>
@@ -164,7 +164,7 @@
   const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
 
   // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
-  const APP_VERSION = '1.0.0';
+  const APP_VERSION = '1.0.1';
 
   // ---------- 状態 ----------
   const state = { items: [], filter: 'all', editing: null };
@@ -200,26 +200,36 @@
       const d = dayLabel(it.createdAt);
       if (d !== cur) { if (cur !== null) html += '</div>'; html += '<div class="day">' + d + '</div><div class="group">'; cur = d; }
       html += '<div class="row' + (it.fav ? ' fav' : '') + '" data-id="' + it.id + '"><div class="bgdel">削除</div><div class="inner">'
-        + (state.editing === it.id ? '<textarea class="edit" rows="1">' + esc(it.title) + '</textarea>' : '<div class="t">' + esc(it.title) + '</div>')
+        + (state.editing === it.id ? '<input class="edit" type="text" enterkeyhint="done" value="' + esc(it.title) + '" />' : '<div class="t">' + esc(it.title) + '</div>')
         + '<button class="star" aria-label="お気に入り">' + STAR + '</button></div></div>';
     }
     box.innerHTML = html + '</div>';
     const ed = box.querySelector('.edit');
-    if (ed) { autoGrow(ed); ed.focus(); ed.setSelectionRange(ed.value.length, ed.value.length); bindEdit(ed); }
+    if (ed) { bindEdit(ed); ed.focus(); try { ed.setSelectionRange(ed.value.length, ed.value.length); } catch (_) {} }
   }
 
   // ---------- 入力 ----------
   const input = $('#input');
-  function autoGrow(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
-  input.addEventListener('input', () => { autoGrow(input); $('#addBtn').disabled = !input.value.trim(); });
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); addItem(); } });
+  // 日本語の変換中のEnter（確定）で追加してしまわないように。iOS Safari は確定直後のEnterも来るので keyCode 229 と時間で見分ける
+  let composing = false, compEndAt = 0;
+  function imeBusy(e) { return composing || e.isComposing || e.keyCode === 229 || Date.now() - compEndAt < 60; }
+  function watchIme(el) {
+    el.addEventListener('compositionstart', () => { composing = true; });
+    el.addEventListener('compositionend', () => { composing = false; compEndAt = Date.now(); });
+  }
+  watchIme(input);
+  const syncBtn = () => { $('#addBtn').disabled = !input.value.trim(); };
+  input.addEventListener('input', syncBtn);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && imeBusy(e)) e.preventDefault(); });
   $('#composer').addEventListener('submit', (e) => { e.preventDefault(); addItem(); });
+  // ↑ボタンを押してもキーボードが閉じないように（入力欄のフォーカスを奪わない）
+  $('#addBtn').addEventListener('pointerdown', (e) => { if (document.activeElement === input) e.preventDefault(); });
   async function addItem() {
     const title = input.value.trim(); if (!title) return;
     const now = Date.now();
     const it = { id: uid(), title, fav: state.filter === 'fav', createdAt: now, updatedAt: now };
     state.items.unshift(it); await put('items', it);
-    input.value = ''; autoGrow(input); $('#addBtn').disabled = true;
+    input.value = ''; syncBtn();
     render(); $('#list').scrollTop = 0; input.focus();
   }
 
@@ -239,16 +249,23 @@
   });
   function bindEdit(ed) {
     let done = false;
+    const myId = state.editing; // この入力欄が書き直している項目
     const finish = async (save) => {
       if (done) return; done = true;
-      const it = state.items.find((x) => x.id === state.editing); state.editing = null;
+      const it = state.items.find((x) => x.id === myId);
+      if (state.editing === myId) state.editing = null; // ほかの行の書き直しが始まっていたら、そちらは閉じない
       const v = ed.value.trim();
       if (it && save && v && v !== it.title) { it.title = v; it.updatedAt = Date.now(); await put('items', it); }
-      render();
+      if (state.editing === null) render();
+      else { const t = document.querySelector('.row[data-id="' + myId + '"] .t'); if (t && it) t.textContent = it.title; } // ほかの行を書き直し中なら、その入力欄はそのまま
     };
-    ed.addEventListener('input', () => autoGrow(ed));
-    ed.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); finish(true); } if (e.key === 'Escape') finish(false); });
-    ed.addEventListener('blur', () => finish(true));
+    watchIme(ed);
+    ed.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); if (!imeBusy(e)) finish(true); }
+      if (e.key === 'Escape') finish(false);
+    });
+    // 同じ行の ☆ をタップしたときに取りこぼさないよう、少し待ってから閉じる
+    ed.addEventListener('blur', () => setTimeout(() => finish(true), 120));
   }
 
   // ---------- 左スワイプで削除（取り消せる） ----------
@@ -348,7 +365,8 @@
   (async function init() {
     setupViewportTracking();
     await openDB(); await loadAll(); render();
-    setTimeout(() => input.focus(), 150);
+    // iPhone/iPad では自動でフォーカスしない（キーボードが出ないまま「フォーカス済み」になり、タップしても入力できなくなるため）
+    if (!(navigator.maxTouchPoints > 0)) setTimeout(() => input.focus(), 150);
   })();
 
   // ---------- visualViewport（キーボード対策） ----------
