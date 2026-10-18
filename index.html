@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="INBOX" />
+<meta name="theme-color" content="#F4F2EE" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%232E3A59'/%3E%3Cstop offset='1' stop-color='%23161C2E'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Cpath d='M14 34h10l3 6h10l3-6h10v12a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4z' fill='%23F5B942'/%3E%3Cpath d='M19 16h26l5 16H40l-3 6H27l-3-6H14z' fill='none' stroke='white' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E" />
+<title>INBOX</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #F4F2EE;
+    --card: #FFFFFF;
+    --ink: #1C2235;
+    --navy: #2E3A59;
+    --secondary: rgba(28,34,53,0.55);
+    --tertiary: rgba(28,34,53,0.3);
+    --sep: rgba(28,34,53,0.1);
+    --amber: #F5B942;
+    --amber-deep: #D99A1C;
+    --red: #E5484D;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); }
+  body {
+    font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+    color: var(--ink); font-size: 16px; -webkit-font-smoothing: antialiased; overscroll-behavior: none;
+  }
+  #app { height: var(--app-height, 100%); display: flex; flex-direction: column; padding-top: var(--safe-top); transition: height .15s ease-out; max-width: 640px; margin: 0 auto; }
+
+  /* 見出し */
+  .top { display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px; }
+  .top h1 { font-size: 26px; font-weight: 700; letter-spacing: .08em; color: var(--navy); }
+  .top .count { font-size: 13px; color: var(--secondary); font-weight: 500; margin-top: 4px; }
+  .top .gear { margin-left: auto; width: 36px; height: 36px; border: 0; background: none; color: var(--secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 10px; }
+  .top .gear:active { background: rgba(28,34,53,.06); }
+
+  /* すべて / ★ */
+  .seg { margin: 0 16px 10px; display: grid; grid-template-columns: 1fr 1fr; background: rgba(28,34,53,.07); border-radius: 10px; padding: 3px; }
+  .seg button { border: 0; background: none; font-family: inherit; font-size: 14px; font-weight: 500; color: var(--secondary); padding: 7px 0; border-radius: 8px; cursor: pointer; }
+  .seg button.on { background: var(--card); color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .seg button .st { color: var(--amber-deep); }
+
+  /* 一覧 */
+  .list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 16px 16px; }
+  .day { font-size: 12px; font-weight: 700; color: var(--secondary); margin: 14px 4px 6px; letter-spacing: .04em; }
+  .day:first-child { margin-top: 4px; }
+  .group { background: var(--card); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(28,34,53,.05); }
+  .row { position: relative; overflow: hidden; }
+  .row + .row::before { content: ''; position: absolute; left: 16px; right: 0; top: 0; height: .5px; background: var(--sep); z-index: 2; }
+  .row .bgdel { position: absolute; inset: 0; background: var(--red); color: #fff; display: flex; align-items: center; justify-content: flex-end; padding-right: 22px; font-size: 14px; font-weight: 700; }
+  .row .inner { position: relative; z-index: 1; background: var(--card); display: flex; align-items: center; gap: 10px; padding: 12px 8px 12px 16px; min-height: 52px; touch-action: pan-y; transition: transform .22s ease; }
+  .row .inner.drag { transition: none; }
+  .row .t { flex: 1; min-width: 0; font-size: 16px; line-height: 1.5; word-break: break-word; white-space: pre-wrap; }
+  .row .edit { flex: 1; min-width: 0; font: inherit; font-size: 16px; line-height: 1.5; border: 0; outline: none; background: rgba(245,185,66,.12); border-radius: 8px; padding: 4px 8px; margin: -4px -8px; color: var(--ink); resize: none; }
+  .row .star { flex-shrink: 0; width: 40px; height: 40px; border: 0; background: none; cursor: pointer; color: var(--tertiary); display: flex; align-items: center; justify-content: center; }
+  .row .star svg { width: 22px; height: 22px; }
+  .row.fav .star { color: var(--amber); }
+  .row.fav .star svg path { fill: var(--amber); }
+  .row .star:active svg { transform: scale(.85); }
+  .empty { text-align: center; color: var(--secondary); font-size: 14px; line-height: 1.9; padding: 70px 20px; }
+  .empty b { display: block; font-size: 34px; margin-bottom: 6px; }
+
+  /* 入力欄（下・親指の位置） */
+  .composer { padding: 10px 12px calc(var(--safe-bottom) + 10px); background: rgba(244,242,238,.94); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: .5px solid var(--sep); display: flex; gap: 8px; align-items: flex-end; }
+  body.keyboard-open .composer { padding-bottom: 10px; }
+  .composer textarea { flex: 1; min-width: 0; font: inherit; font-size: 16px; line-height: 1.45; border: 1px solid var(--sep); background: var(--card); border-radius: 20px; padding: 9px 16px; outline: none; resize: none; max-height: 120px; color: var(--ink); }
+  .composer textarea:focus { border-color: rgba(46,58,89,.4); }
+  .composer .add { flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--navy); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity .15s; }
+  .composer .add:disabled { opacity: .3; }
+
+  /* トースト */
+  .toast { position: fixed; left: 50%; bottom: calc(var(--safe-bottom) + 76px); transform: translateX(-50%) translateY(20px); opacity: 0; pointer-events: none; background: var(--ink); color: #fff; border-radius: 12px; padding: 10px 10px 10px 16px; font-size: 14px; display: flex; align-items: center; gap: 12px; transition: all .25s; z-index: 50; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+  .toast button { border: 0; background: rgba(255,255,255,.16); color: var(--amber); font: inherit; font-weight: 700; font-size: 13px; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+  .toast button:empty { display: none; }
+
+  /* 設定 */
+  .sheetBg { position: fixed; inset: 0; background: rgba(0,0,0,.3); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 60; }
+  .sheetBg.show { opacity: 1; pointer-events: auto; }
+  .sheet { position: fixed; left: 0; right: 0; bottom: 0; max-width: 640px; margin: 0 auto; background: var(--bg); border-radius: 18px 18px 0 0; padding: 10px 16px calc(var(--safe-bottom) + 18px); transform: translateY(105%); transition: transform .3s cubic-bezier(.32,.72,0,1); z-index: 61; }
+  .sheet.show { transform: translateY(0); }
+  .sheet .grab { width: 36px; height: 5px; border-radius: 3px; background: var(--tertiary); margin: 0 auto 12px; }
+  .sheet h3 { font-size: 16px; text-align: center; margin-bottom: 14px; }
+  .sgroup { background: var(--card); border-radius: 12px; overflow: hidden; }
+  .sgroup button { display: block; width: 100%; text-align: left; border: 0; background: none; font: inherit; font-size: 15px; color: var(--navy); padding: 14px 16px; cursor: pointer; }
+  .sgroup button + button { border-top: .5px solid var(--sep); }
+  .snote { font-size: 12px; color: var(--secondary); line-height: 1.7; margin: 10px 4px 0; }
+  .snote.due { color: #B4651A; font-weight: 700; }
+  #versionLabel { text-align: center; font-size: 12px; color: var(--tertiary); margin-top: 14px; }
+
+  #updateBanner { position: fixed; left: 12px; right: 12px; bottom: calc(var(--safe-bottom) + 16px); z-index: 1000; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--navy); color: #fff; border: 0; border-radius: 14px; padding: 14px 18px; font-family: inherit; font-size: 14px; font-weight: 600; box-shadow: 0 8px 28px rgba(28,34,53,.4); cursor: pointer; transform: translateY(140%); transition: transform .35s cubic-bezier(.32,.72,0,1); }
+  #updateBanner.show { transform: translateY(0); }
+  #updateBanner svg { display: block; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <h1>INBOX</h1>
+    <span class="count" id="count"></span>
+    <button class="gear" id="gearBtn" aria-label="設定">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg>
+    </button>
+  </div>
+  <div class="seg" id="seg">
+    <button data-f="all" class="on">すべて</button>
+    <button data-f="fav"><span class="st">★</span> お気に入り</button>
+  </div>
+  <div class="list" id="list"></div>
+  <form class="composer" id="composer">
+    <textarea id="input" rows="1" placeholder="気になったこと・やること" enterkeyhint="done" autocomplete="off"></textarea>
+    <button class="add" id="addBtn" type="submit" aria-label="追加" disabled>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>
+    </button>
+  </form>
+</div>
+
+<div class="toast" id="toast"><span></span><button></button></div>
+
+<div class="sheetBg" id="sheetBg"></div>
+<div class="sheet" id="sheet">
+  <div class="grab"></div>
+  <h3>INBOX</h3>
+  <div class="sgroup">
+    <button id="exportBtn">データを書き出す</button>
+    <button id="importBtn">データを取り込む</button>
+  </div>
+  <input type="file" id="importFile" accept="application/json,.json" hidden />
+  <p class="snote" id="bkNote"></p>
+  <p class="snote">左にスワイプで削除。文字をタップすると書き直せます。</p>
+  <div id="versionLabel"></div>
+</div>
+
+<script>
+  const $ = (s) => document.querySelector(s);
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // ---------- IndexedDB（DB名は変えない） ----------
+  const DB_NAME = 'inbox-db', DB_VERSION = 1, STORES = ['items'];
+  let _db = null;
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = () => { const db = req.result; for (const s of STORES) if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' }); };
+      req.onsuccess = () => { _db = req.result; resolve(_db); };
+      req.onerror = () => reject(req.error);
+    });
+  }
+  const tx = (store, mode = 'readonly') => _db.transaction(store, mode).objectStore(store);
+  const getAll = (s) => new Promise((res, rej) => { const r = tx(s).getAll(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  const put = (s, v) => new Promise((res, rej) => { const r = tx(s, 'readwrite').put(v); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
+  const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
+
+  // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
+  const APP_VERSION = '1.0.0';
+
+  // ---------- 状態 ----------
+  const state = { items: [], filter: 'all', editing: null };
+  const FILTER_KEY = 'inbox.filter';
+  try { if (localStorage.getItem(FILTER_KEY) === 'fav') state.filter = 'fav'; } catch (e) {}
+  async function loadAll() { state.items = (await getAll('items')).sort((a, b) => b.createdAt - a.createdAt); }
+
+  // ---------- 表示 ----------
+  const STAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg>';
+  function dayLabel(ts) {
+    const d = new Date(ts), t = new Date();
+    const k = (x) => x.getFullYear() * 10000 + x.getMonth() * 100 + x.getDate();
+    const y = new Date(t); y.setDate(t.getDate() - 1);
+    if (k(d) === k(t)) return '今日';
+    if (k(d) === k(y)) return '昨日';
+    const w = '日月火水木金土'[d.getDay()];
+    return (d.getFullYear() !== t.getFullYear() ? d.getFullYear() + '年' : '') + (d.getMonth() + 1) + '月' + d.getDate() + '日（' + w + '）';
+  }
+  function render() {
+    document.querySelectorAll('#seg button').forEach((b) => b.classList.toggle('on', b.dataset.f === state.filter));
+    const favN = state.items.filter((i) => i.fav).length;
+    $('#count').textContent = state.items.length ? state.items.length + '件' + (favN ? ' ・ ★' + favN : '') : '';
+    const list = state.filter === 'fav' ? state.items.filter((i) => i.fav) : state.items;
+    const box = $('#list');
+    if (!list.length) {
+      box.innerHTML = state.filter === 'fav'
+        ? '<div class="empty"><b>☆</b>お気に入りはまだありません。<br>行の右の ☆ をタップすると入ります。</div>'
+        : '<div class="empty"><b>📥</b>なんでも、ここに放りこもう。<br>下の欄に書いて、追加するだけ。</div>';
+      return;
+    }
+    let html = '', cur = null;
+    for (const it of list) {
+      const d = dayLabel(it.createdAt);
+      if (d !== cur) { if (cur !== null) html += '</div>'; html += '<div class="day">' + d + '</div><div class="group">'; cur = d; }
+      html += '<div class="row' + (it.fav ? ' fav' : '') + '" data-id="' + it.id + '"><div class="bgdel">削除</div><div class="inner">'
+        + (state.editing === it.id ? '<textarea class="edit" rows="1">' + esc(it.title) + '</textarea>' : '<div class="t">' + esc(it.title) + '</div>')
+        + '<button class="star" aria-label="お気に入り">' + STAR + '</button></div></div>';
+    }
+    box.innerHTML = html + '</div>';
+    const ed = box.querySelector('.edit');
+    if (ed) { autoGrow(ed); ed.focus(); ed.setSelectionRange(ed.value.length, ed.value.length); bindEdit(ed); }
+  }
+
+  // ---------- 入力 ----------
+  const input = $('#input');
+  function autoGrow(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+  input.addEventListener('input', () => { autoGrow(input); $('#addBtn').disabled = !input.value.trim(); });
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); addItem(); } });
+  $('#composer').addEventListener('submit', (e) => { e.preventDefault(); addItem(); });
+  async function addItem() {
+    const title = input.value.trim(); if (!title) return;
+    const now = Date.now();
+    const it = { id: uid(), title, fav: state.filter === 'fav', createdAt: now, updatedAt: now };
+    state.items.unshift(it); await put('items', it);
+    input.value = ''; autoGrow(input); $('#addBtn').disabled = true;
+    render(); $('#list').scrollTop = 0; input.focus();
+  }
+
+  // ---------- お気に入り・書き直し ----------
+  $('#list').addEventListener('click', async (e) => {
+    if (swipeMoved) return;
+    const row = e.target.closest('.row'); if (!row) return;
+    const it = state.items.find((x) => x.id === row.dataset.id); if (!it) return;
+    if (e.target.closest('.star')) {
+      it.fav = !it.fav; it.updatedAt = Date.now(); await put('items', it);
+      if (state.filter === 'fav' && !it.fav) { render(); toast('お気に入りから はずしました', '戻す', async () => { it.fav = true; it.updatedAt = Date.now(); await put('items', it); render(); }); }
+      else row.classList.toggle('fav', it.fav);
+      $('#count').textContent = state.items.length + '件' + (state.items.filter((i) => i.fav).length ? ' ・ ★' + state.items.filter((i) => i.fav).length : '');
+      return;
+    }
+    if (e.target.closest('.t')) { state.editing = it.id; render(); }
+  });
+  function bindEdit(ed) {
+    let done = false;
+    const finish = async (save) => {
+      if (done) return; done = true;
+      const it = state.items.find((x) => x.id === state.editing); state.editing = null;
+      const v = ed.value.trim();
+      if (it && save && v && v !== it.title) { it.title = v; it.updatedAt = Date.now(); await put('items', it); }
+      render();
+    };
+    ed.addEventListener('input', () => autoGrow(ed));
+    ed.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); finish(true); } if (e.key === 'Escape') finish(false); });
+    ed.addEventListener('blur', () => finish(true));
+  }
+
+  // ---------- 左スワイプで削除（取り消せる） ----------
+  let swipeMoved = false;
+  (function setupSwipe() {
+    const list = $('#list');
+    let row = null, inner = null, x0 = 0, y0 = 0, dx = 0, mode = '';
+    list.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.star, .edit')) return;
+      row = e.target.closest('.row'); if (!row) return;
+      inner = row.querySelector('.inner'); x0 = e.clientX; y0 = e.clientY; dx = 0; mode = ''; swipeMoved = false;
+    });
+    list.addEventListener('pointermove', (e) => {
+      if (!row) return;
+      const mx = e.clientX - x0, my = e.clientY - y0;
+      if (!mode) { if (Math.abs(mx) > 8 && Math.abs(mx) > Math.abs(my)) { mode = 'h'; inner.classList.add('drag'); try { list.setPointerCapture(e.pointerId); } catch (_) {} } else if (Math.abs(my) > 8) { mode = 'v'; row = null; return; } else return; }
+      if (mode === 'h') { swipeMoved = true; dx = Math.min(0, mx); inner.style.transform = 'translateX(' + dx + 'px)'; }
+    });
+    const end = async () => {
+      if (!row) return;
+      const r = row, inn = inner; row = null; inn.classList.remove('drag');
+      if (mode === 'h' && dx < -90) {
+        inn.style.transform = 'translateX(-110%)';
+        const it = state.items.find((x) => x.id === r.dataset.id);
+        setTimeout(() => removeItem(it), 180);
+      } else inn.style.transform = '';
+      setTimeout(() => { swipeMoved = false; }, 50);
+    };
+    list.addEventListener('pointerup', end); list.addEventListener('pointercancel', end);
+  })();
+  async function removeItem(it) {
+    if (!it) return;
+    state.items = state.items.filter((x) => x.id !== it.id); await del('items', it.id); render();
+    toast('削除しました', '取り消す', async () => { await put('items', it); await loadAll(); render(); });
+  }
+
+  // ---------- トースト ----------
+  let toastT = 0;
+  function toast(msg, label, fn) {
+    const t = $('#toast'); t.querySelector('span').textContent = msg;
+    const b = t.querySelector('button'); b.textContent = label || ''; b.onclick = fn ? () => { t.classList.remove('show'); fn(); } : null;
+    t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), fn ? 5000 : 2200);
+  }
+
+  // ---------- すべて / お気に入り ----------
+  $('#seg').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    state.filter = b.dataset.f; try { localStorage.setItem(FILTER_KEY, state.filter); } catch (_) {}
+    render(); $('#list').scrollTop = 0;
+  });
+
+  // ---------- バックアップ（全アプリ共通の作法） ----------
+  function bkName(app) { const d = new Date(); return `${app}_${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.json`; }
+  async function bkSave(app, text) {
+    const name = bkName(app);
+    if (navigator.maxTouchPoints > 0) {
+      try {
+        const file = new File([text], name, { type: 'application/json' });
+        if (navigator.canShare && navigator.share && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return 'ok'; }
+      } catch (e) { if (e && e.name === 'AbortError') return 'cancel'; }
+    }
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    const a = document.createElement('a'); a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1500);
+    return 'ok';
+  }
+  const BK_KEY = 'inbox.lastBackupAt';
+  function bkText() { let t = 0; try { t = Number(localStorage.getItem(BK_KEY) || 0); } catch (e) {} if (!t) return 'まだ一度もバックアップしていません'; const d = Math.floor((Date.now() - t) / 86400000); return d === 0 ? '前回のバックアップ：今日' : '前回のバックアップから ' + d + '日'; }
+  function bkDue() { let t = 0; try { t = Number(localStorage.getItem(BK_KEY) || 0); } catch (e) {} return !t || Date.now() - t >= 30 * 86400000; }
+  const SCHEMA = 'inbox.v1';
+  $('#exportBtn').addEventListener('click', async () => {
+    const data = { schema: SCHEMA, exportedAt: new Date().toISOString(), items: state.items };
+    if (await bkSave('INBOX', JSON.stringify(data, null, 2)) !== 'ok') return;
+    try { localStorage.setItem(BK_KEY, String(Date.now())); } catch (e) {}
+    renderSheet(); toast('書き出しました');
+  });
+  $('#importBtn').addEventListener('click', () => $('#importFile').click());
+  $('#importFile').addEventListener('change', async (e) => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      if (data.schema !== SCHEMA) { toast('INBOXのデータではないようです'); return; }
+      const byId = new Map(state.items.map((x) => [x.id, x])); let n = 0;
+      for (const it of (data.items || [])) { const l = byId.get(it.id); if (!l || (it.updatedAt || 0) > (l.updatedAt || 0)) { await put('items', it); n++; } }
+      await loadAll(); render(); closeSheet(); toast(n + '件 取り込みました');
+    } catch (err) { toast('取り込めませんでした'); }
+  });
+
+  // ---------- 設定シート ----------
+  function renderSheet() { const n = $('#bkNote'); n.textContent = bkText(); n.classList.toggle('due', bkDue() && state.items.length > 0); $('#versionLabel').textContent = 'v' + APP_VERSION; }
+  function openSheet() { renderSheet(); input.blur(); $('#sheetBg').classList.add('show'); $('#sheet').classList.add('show'); }
+  function closeSheet() { $('#sheetBg').classList.remove('show'); $('#sheet').classList.remove('show'); }
+  $('#gearBtn').addEventListener('click', openSheet);
+  $('#sheetBg').addEventListener('click', closeSheet);
+
+  // ---------- 起動（すぐ書ける） ----------
+  (async function init() {
+    setupViewportTracking();
+    await openDB(); await loadAll(); render();
+    setTimeout(() => input.focus(), 150);
+  })();
+
+  // ---------- visualViewport（キーボード対策） ----------
+  function setupViewportTracking() {
+    const vv = window.visualViewport; if (!vv) return;
+    const root = document.documentElement; let baseHeight = vv.height;
+    function apply() { root.style.setProperty('--app-height', vv.height + 'px'); document.body.classList.toggle('keyboard-open', vv.height < baseHeight - 120); }
+    vv.addEventListener('resize', apply); vv.addEventListener('scroll', apply);
+    window.addEventListener('orientationchange', () => { setTimeout(() => { baseHeight = vv.height; apply(); }, 300); });
+    apply();
+  }
+
+  // ---------- Service Worker + 自動アップデート ----------
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', async () => {
+      try {
+        const res = await fetch(new URL('sw.js', location.href).href, { method: 'HEAD' }); if (!res.ok) return;
+        const reg = await navigator.serviceWorker.register('sw.js');
+        if (reg.waiting && navigator.serviceWorker.controller) showUpdateBanner(reg.waiting);
+        reg.addEventListener('updatefound', () => { const sw = reg.installing; if (!sw) return; sw.addEventListener('statechange', () => { if (sw.state === 'installed' && navigator.serviceWorker.controller) showUpdateBanner(sw); }); });
+        reg.update();
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update(); });
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => { if (refreshing) return; refreshing = true; window.location.reload(); });
+      } catch (e) {}
+    });
+  }
+  function showUpdateBanner(waitingSW) {
+    if (document.getElementById('updateBanner')) return;
+    const b = document.createElement('button'); b.id = 'updateBanner';
+    b.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg><span>新しいバージョンがあります — タップで更新</span>';
+    b.addEventListener('click', () => { b.disabled = true; b.querySelector('span').textContent = '更新中…'; waitingSW.postMessage('SKIP_WAITING'); });
+    document.body.appendChild(b); requestAnimationFrame(() => b.classList.add('show'));
+  }
+</script>
+</body>
+</html>
