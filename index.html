@@ -64,6 +64,12 @@
   .top .count { font-size: 13px; color: var(--secondary); font-weight: 500; margin-top: 4px; white-space: nowrap; }
   .top .back { border: 0; background: none; color: var(--accent); font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 2px; padding: 6px 4px; }
   .top .vtitle { font-size: 20px; font-weight: 700; }
+  .top .swhint { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 10.5px; line-height: 1.35; color: var(--secondary); font-weight: 500; white-space: nowrap; margin-top: 3px; }
+  .top .swhint b { display: inline-block; width: 14px; text-align: center; font-weight: 700; }
+  .top .swhint i { font-style: normal; }
+  @media (max-width: 360px) { .top .swhint i { display: none; } .top .swhint > span { min-width: 0 !important; } .top h1 { font-size: 22px; } }
+  .top .swhint > span { text-align: left; min-width: 74px; }
+  .top .swhint .g { color: var(--green); } .top .swhint .r { color: var(--red); }
   .top .tools { margin-left: auto; display: flex; align-items: center; gap: 2px; }
   .tbtn { position: relative; height: 36px; min-width: 36px; padding: 0 6px; border: 0; background: none; color: var(--secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 3px; border-radius: 10px; font: inherit; font-size: 12px; font-weight: 700; }
   .tbtn:active { background: var(--chip); }
@@ -214,7 +220,7 @@
   const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
 
   // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
-  const APP_VERSION = '1.1.2';
+  const APP_VERSION = '1.2.0';
 
   // ---------- 状態 ----------
   // item: { id, title, fav, createdAt, updatedAt, status: undefined(=受け箱) | 'done' | 'trash', doneAt, trashedAt }
@@ -259,6 +265,7 @@
     const c = counts(), top = $('#top');
     if (state.view === 'inbox') {
       top.innerHTML = '<h1>INBOX</h1><span class="count">' + (c.inbox ? c.inbox + '件' + (c.fav ? ' ・ ★' + c.fav : '') : '') + '</span>'
+        + '<span class="swhint" aria-hidden="true"><span><b class="g">→</b><i>右で</i>完了</span><span><b class="r">←</b><i>左で</i>ゴミ箱</span></span>'
         + '<div class="tools"><button class="tbtn" data-go="done" aria-label="完了">' + ICON_DONE + (c.done ? '<span>' + c.done + '</span>' : '') + '</button>'
         + '<button class="tbtn" data-go="trash" aria-label="ゴミ箱">' + ICON_TRASH + (c.trash ? '<span>' + c.trash + '</span>' : '') + '</button>'
         + '<button class="tbtn" id="gearBtn" aria-label="設定">' + ICON_MORE + '</button></div>';
