@@ -162,6 +162,7 @@
   #updateBanner.show { transform: translateY(0); }
   #updateBanner svg { display: block; flex-shrink: 0; }
 </style>
+<script>/* iPhoneが容量不足のときに保存データを消さないよう、端末にお願いしておく */try{navigator.storage&&navigator.storage.persist&&navigator.storage.persisted().then(function(p){if(!p)navigator.storage.persist();});}catch(e){}</script>
 </head>
 <body class="view-inbox">
 <div id="app">
@@ -220,7 +221,7 @@
   const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
 
   // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
-  const APP_VERSION = '1.4.0';
+  const APP_VERSION = '1.5.0';
 
   // ---------- 状態 ----------
   // item: { id, title, fav, createdAt, updatedAt, status: undefined(=受け箱) | 'done' | 'trash', doneAt, trashedAt }
