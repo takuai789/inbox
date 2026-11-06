@@ -7,14 +7,11 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="INBOX" />
-<meta name="theme-color" content="#F4F2EE" id="themeColor" />
+<meta name="theme-color" content="#F2F2F7" id="themeColor" />
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="apple-touch-icon" href="icon-192.png" />
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%232E3A59'/%3E%3Cstop offset='1' stop-color='%23161C2E'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Cpath d='M14 34h10l3 6h10l3-6h10v12a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4z' fill='%23F5B942'/%3E%3Cpath d='M19 16h26l5 16H40l-3 6H27l-3-6H14z' fill='none' stroke='white' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E" />
 <title>INBOX</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
 <script>
   // 保存してある色を、描画の前に当てる（ちらつき防止）
   try { const t = localStorage.getItem('inbox.theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
@@ -22,9 +19,9 @@
 <style>
   /* ---------- カラー（5種類） ---------- */
   :root, [data-theme="navy"] {
-    --bg: #F4F2EE; --card: #FFFFFF; --ink: #1C2235; --accent: #2E3A59; --accent-ink: #FFFFFF;
+    --bg: #F2F2F7; --card: #FFFFFF; --ink: #1C1C1E; --accent: #2E3A59; --accent-ink: #FFFFFF;
     --secondary: rgba(28,34,53,0.55); --tertiary: rgba(28,34,53,0.3); --sep: rgba(28,34,53,0.1); --chip: rgba(28,34,53,.07);
-    --glass: rgba(244,242,238,.94);
+    --glass: rgba(242,242,247,.94);
   }
   [data-theme="turquoise"] {
     --bg: #ECF6F5; --card: #FFFFFF; --ink: #10302F; --accent: #0E9494; --accent-ink: #FFFFFF;
@@ -54,78 +51,91 @@
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; overflow: hidden; background: var(--bg); }
-  body { font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif; color: var(--ink); font-size: 16px; -webkit-font-smoothing: antialiased; overscroll-behavior: none; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Hiragino Sans', sans-serif; color: var(--ink); font-size: 16px; -webkit-font-smoothing: antialiased; overscroll-behavior: none; }
   /* iPhone でキーボードが出たとき、画面がずれて真っ白にならないよう、見えている範囲（visualViewport）にぴったり固定する */
-  #app { position: fixed; left: 0; right: 0; top: var(--app-top, 0px); height: var(--app-height, 100%); display: flex; flex-direction: column; padding-top: var(--safe-top); max-width: 640px; margin: 0 auto; }
+  #app { position: fixed; left: 0; right: 0; top: 0; height: 100%; display: flex; flex-direction: column; padding-top: var(--safe-top); max-width: 640px; margin: 0 auto; }
 
-  /* 見出し */
-  .top { display: flex; align-items: center; gap: 8px; padding: 14px 12px 10px 16px; min-height: 60px; }
-  .top h1 { font-size: 26px; font-weight: 700; letter-spacing: .08em; color: var(--accent); }
-  .top .count { font-size: 13px; color: var(--secondary); font-weight: 500; margin-top: 4px; white-space: nowrap; }
-  .top .back { border: 0; background: none; color: var(--accent); font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 2px; padding: 6px 4px; }
-  .top .vtitle { font-size: 20px; font-weight: 700; }
-  .top .swhint { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 10.5px; line-height: 1.35; color: var(--secondary); font-weight: 500; white-space: nowrap; margin-top: 3px; }
-  .top .swhint b { display: inline-block; width: 14px; text-align: center; font-weight: 700; }
-  .top .swhint i { font-style: normal; }
-  @media (max-width: 360px) { .top .swhint i { display: none; } .top .swhint > span { min-width: 0 !important; } .top h1 { font-size: 22px; } }
-  .top .swhint > span { text-align: left; min-width: 74px; }
-  .top .swhint .g { color: var(--green); } .top .swhint .r { color: var(--red); }
-  .top .tools { margin-left: auto; display: flex; align-items: center; gap: 2px; }
-  .tbtn { position: relative; height: 36px; min-width: 36px; padding: 0 6px; border: 0; background: none; color: var(--secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 3px; border-radius: 10px; font: inherit; font-size: 12px; font-weight: 700; }
+  /* 見出し（iPhoneの大きなタイトル） */
+  .top { display: flex; align-items: flex-end; gap: 8px; padding: 8px 10px 6px 20px; min-height: 64px; }
+  .top .ttl { flex: 1; min-width: 0; }
+  .top h1 { font-size: 34px; font-weight: 700; letter-spacing: .01em; color: var(--ink); line-height: 1.15; }
+  .top .count { font-size: 13px; color: var(--secondary); font-weight: 500; margin-top: 1px; display: block; min-height: 18px; }
+  .top .back { border: 0; background: none; color: var(--accent); font: inherit; font-size: 17px; cursor: pointer; display: flex; align-items: center; gap: 0; padding: 6px 4px 6px 0; margin-left: -6px; }
+  .top.sub { flex-direction: column; align-items: stretch; gap: 0; padding-top: 4px; }
+  .top.sub .navrow { display: flex; align-items: center; min-height: 40px; }
+  .top.sub h1 { font-size: 30px; }
+  .top .tools { display: flex; align-items: center; gap: 2px; margin-bottom: 6px; }
+  .tbtn { position: relative; height: 38px; min-width: 38px; padding: 0 6px; border: 0; background: none; color: var(--accent); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 3px; border-radius: 10px; font: inherit; font-size: 13px; font-weight: 600; }
   .tbtn:active { background: var(--chip); }
-  .tbtn svg { width: 21px; height: 21px; }
-  .emptyTrash { border: 0; background: none; color: var(--red); font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; padding: 6px 8px; margin-left: auto; }
+  .tbtn svg { width: 23px; height: 23px; }
+  .tbtn span { font-variant-numeric: tabular-nums; }
+  .emptyTrash { border: 0; background: none; color: var(--red); font: inherit; font-size: 16px; cursor: pointer; padding: 6px 8px; margin-left: auto; }
   .emptyTrash:disabled { opacity: .3; }
 
   /* すべて / ★ */
-  .seg { margin: 0 16px 10px; display: grid; grid-template-columns: 1fr 1fr; background: var(--chip); border-radius: 10px; padding: 3px; }
-  .seg button { border: 0; background: none; font-family: inherit; font-size: 14px; font-weight: 500; color: var(--secondary); padding: 7px 0; border-radius: 8px; cursor: pointer; }
-  .seg button.on { background: var(--card); color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .seg { margin: 4px 16px 12px; display: grid; grid-template-columns: 1fr 1fr; background: rgba(118,118,128,.12); border-radius: 9px; padding: 2px; }
+  .seg button { border: 0; background: none; font-family: inherit; font-size: 13.5px; font-weight: 500; color: var(--ink); padding: 6px 0; border-radius: 7px; cursor: pointer; }
+  .seg button.on { background: var(--card); font-weight: 600; box-shadow: 0 3px 8px rgba(0,0,0,.08), 0 1px 1px rgba(0,0,0,.04); }
   .seg button .st { color: var(--amber-deep); }
 
+  /* 入力欄（上：キーボードに隠れない・押し上げられない） */
+  .composer { flex-shrink: 0; margin: 0 16px 14px; background: var(--card); border-radius: 12px; display: flex; align-items: flex-start; gap: 10px; padding: 11px 10px 11px 14px; box-shadow: 0 1px 2px rgba(0,0,0,.04); border: 1.5px solid transparent; transition: border-color .15s; }
+  .composer.focus { border-color: var(--accent); }
+  .composer .plus { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+  .composer textarea { flex: 1; min-width: 0; font: inherit; font-size: 17px; line-height: 1.5; border: 0; background: none; outline: none; color: var(--ink); resize: none; height: 26px; max-height: 128px; overflow-y: auto; -webkit-appearance: none; appearance: none; -webkit-user-select: text; user-select: text; padding: 0; }
+  .composer textarea::placeholder { color: var(--tertiary); }
+  .composer .add { flex-shrink: 0; height: 28px; padding: 0 12px; border-radius: 14px; border: 0; background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; display: none; align-items: center; }
+  .composer.has .add { display: flex; }
+  body.view-done .composer, body.view-trash .composer, body.view-done .seg, body.view-trash .seg { display: none; }
+
   /* 一覧 */
-  .list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 16px 16px; }
-  .vhint { font-size: 12px; color: var(--secondary); margin: 0 4px 8px; line-height: 1.6; }
-  .day { font-size: 12px; font-weight: 700; color: var(--secondary); margin: 16px 4px 6px; letter-spacing: .04em; display: flex; gap: 8px; }
-  .day span { font-weight: 500; opacity: .8; }
-  .day:first-child, .vhint + .day { margin-top: 4px; }
-  .group { background: var(--card); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+  .list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 16px calc(var(--kb, 0px) + var(--safe-bottom) + 90px); }
+  .vhint { font-size: 13px; color: var(--secondary); margin: 0 4px 10px; line-height: 1.6; }
+  .day { font-size: 13px; font-weight: 600; color: var(--secondary); margin: 18px 16px 6px; display: flex; gap: 8px; }
+  .day:first-child, .vhint + .day { margin-top: 2px; }
+  .group { background: var(--card); border-radius: 12px; overflow: hidden; }
   .row { position: relative; overflow: hidden; }
-  .row + .row::before { content: ''; position: absolute; left: 16px; right: 0; top: 0; height: .5px; background: var(--sep); z-index: 2; }
-  .row .bg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; font-size: 14px; font-weight: 700; color: #fff; }
+  .row + .row::before { content: ''; position: absolute; left: 50px; right: 0; top: 0; height: .5px; background: var(--sep); z-index: 2; }
+  .row .bg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; font-size: 15px; font-weight: 700; color: #fff; }
   .row .bg .l { opacity: 0; } .row .bg .r { opacity: 0; }
   .row.sw-right .bg { background: var(--green); } .row.sw-right .bg .l { opacity: 1; }
   .row.sw-left .bg { background: var(--red); } .row.sw-left .bg .r { opacity: 1; }
   .row.sw-right.back .bg { background: var(--accent); }
-  .row .inner { position: relative; z-index: 1; background: var(--card); display: flex; align-items: center; gap: 10px; padding: 12px 8px 12px 16px; min-height: 52px; touch-action: pan-y; transition: transform .22s ease; }
+  .row .inner { position: relative; z-index: 1; background: var(--card); display: flex; align-items: center; gap: 12px; padding: 11px 6px 11px 14px; min-height: 50px; touch-action: pan-y; transition: transform .22s ease; }
   .row .inner.drag { transition: none; }
-  .row .t { flex: 1; min-width: 0; font-size: 16px; line-height: 1.5; word-break: break-word; }
-  .row.done .t { color: var(--secondary); text-decoration: line-through; text-decoration-color: var(--tertiary); }
+  .row .chk { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; border: 1.6px solid var(--tertiary); background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: transparent; padding: 0; transition: all .18s; position: relative; }
+  .row .chk::after { content: ''; position: absolute; inset: -10px; }
+  .row .chk svg { width: 14px; height: 14px; }
+  .row.checking .chk, .row.done .chk { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .row.checking .t { color: var(--secondary); }
+  .row.done .chk { background: var(--secondary); border-color: transparent; }
+  .row .t { flex: 1; min-width: 0; font-size: 17px; line-height: 1.45; word-break: break-word; }
+  .row.done .t { color: var(--secondary); }
   .row.trash .t { color: var(--secondary); }
-  .row .when { font-size: 11px; color: var(--tertiary); white-space: nowrap; }
-  .row .edit { flex: 1; min-width: 0; font: inherit; font-size: 16px; line-height: 1.5; border: 0; outline: none; background: rgba(245,185,66,.16); border-radius: 8px; padding: 4px 8px; margin: -4px -8px; color: var(--ink); -webkit-appearance: none; appearance: none; -webkit-user-select: text; user-select: text; }
-  .row .star, .row .undo { flex-shrink: 0; width: 40px; height: 40px; border: 0; background: none; cursor: pointer; color: var(--tertiary); display: flex; align-items: center; justify-content: center; }
-  .row .star svg { width: 22px; height: 22px; }
+  .row.fresh .inner { animation: fresh 1.2s ease; }
+  @keyframes fresh { 0% { background: color-mix(in srgb, var(--accent) 14%, var(--card)); } 100% { background: var(--card); } }
+  .row .when { font-size: 12px; color: var(--tertiary); white-space: nowrap; }
+  .row .edit { flex: 1; min-width: 0; font: inherit; font-size: 17px; line-height: 1.45; border: 0; outline: none; background: rgba(245,185,66,.16); border-radius: 8px; padding: 3px 8px; margin: -3px -8px; color: var(--ink); -webkit-appearance: none; appearance: none; -webkit-user-select: text; user-select: text; }
+  .row .star, .row .undo { flex-shrink: 0; width: 40px; height: 40px; border: 0; background: none; cursor: pointer; color: rgba(60,60,67,.22); display: flex; align-items: center; justify-content: center; }
+  [data-theme="sumi"] .row .star { color: rgba(236,237,240,.25); }
+  .row .star svg { width: 21px; height: 21px; }
   .row .undo { color: var(--accent); }
   .row .undo svg { width: 20px; height: 20px; }
   .row.fav .star { color: var(--amber); }
   .row.fav .star svg path { fill: var(--amber); }
   .row .star:active svg { transform: scale(.85); }
-  .empty { text-align: center; color: var(--secondary); font-size: 14px; line-height: 1.9; padding: 70px 20px; }
+  .empty { text-align: center; color: var(--secondary); font-size: 15px; line-height: 1.9; padding: 56px 20px; }
   .empty b { display: block; font-size: 34px; margin-bottom: 6px; }
+  .empty small { display: block; font-size: 12.5px; opacity: .85; margin-top: 8px; }
 
-  /* 入力欄（下・親指の位置） */
-  .composer { flex-shrink: 0; padding: 10px 12px calc(var(--safe-bottom) + 10px); background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: .5px solid var(--sep); display: flex; gap: 8px; align-items: center; }
-  body.keyboard-open .composer { padding-bottom: 10px; }
-  .composer input { flex: 1; min-width: 0; height: 40px; font: inherit; font-size: 16px; border: 1px solid var(--sep); background: var(--card); border-radius: 20px; padding: 0 16px; outline: none; color: var(--ink); -webkit-appearance: none; appearance: none; -webkit-user-select: text; user-select: text; }
-  .composer input:focus { border-color: var(--accent); }
-  .composer input::placeholder { color: var(--tertiary); }
-  .composer .add { flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity .15s; }
-  .composer .add:disabled { opacity: .3; }
-  body.view-done .composer, body.view-trash .composer, body.view-done .seg, body.view-trash .seg { display: none; }
+  /* 親指で押せる「＋」（押すと上の入力欄にカーソル） */
+  .fab { position: fixed; right: max(18px, calc(50% - 302px)); bottom: calc(var(--safe-bottom) + 22px); width: 58px; height: 58px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); box-shadow: 0 8px 24px rgba(0,0,0,.22); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 20; transition: transform .2s, opacity .2s; }
+  .fab:active { transform: scale(.92); }
+  .fab svg { width: 28px; height: 28px; }
+  body.typing .fab, body.view-done .fab, body.view-trash .fab { opacity: 0; pointer-events: none; transform: scale(.6); }
 
   /* トースト（上：キーボードに隠れない） */
-  .toast { position: fixed; left: 50%; top: calc(var(--app-top, 0px) + var(--safe-top) + 64px); transform: translateX(-50%) translateY(-12px); opacity: 0; pointer-events: none; background: #1C2235; color: #fff; border-radius: 12px; padding: 10px 10px 10px 16px; font-size: 14px; display: flex; align-items: center; gap: 12px; transition: all .25s; z-index: 50; white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+  .toast { position: fixed; left: 50%; bottom: calc(var(--kb, 0px) + var(--safe-bottom) + 96px); transform: translateX(-50%) translateY(12px); opacity: 0; pointer-events: none; background: #1C2235; color: #fff; border-radius: 12px; padding: 10px 10px 10px 16px; font-size: 14px; display: flex; align-items: center; gap: 12px; transition: all .25s; z-index: 50; white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
   .toast button { border: 0; background: rgba(255,255,255,.16); color: var(--amber); font: inherit; font-weight: 700; font-size: 13px; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
   .toast button:empty { display: none; }
@@ -171,14 +181,14 @@
     <button data-f="all" class="on">すべて</button>
     <button data-f="fav"><span class="st">★</span> お気に入り</button>
   </div>
-  <div class="list" id="list"></div>
   <form class="composer" id="composer">
-    <input id="input" type="text" placeholder="気になったこと・やること" enterkeyhint="send" autocomplete="off" autocorrect="off" />
-    <button class="add" id="addBtn" type="submit" aria-label="追加" disabled>
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>
-    </button>
+    <span class="plus" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+    <textarea id="input" rows="1" placeholder="気になったこと・やること" enterkeyhint="send" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+    <button class="add" id="addBtn" type="submit" aria-label="追加">追加</button>
   </form>
+  <div class="list" id="list"></div>
 </div>
+<button class="fab" id="fab" aria-label="書く"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
 
 <div class="toast" id="toast"><span></span><button></button></div>
 <div class="dlgBg" id="dlgBg"><div class="dlg"><p id="dlgMsg"></p><div class="btns"><button id="dlgNo">やめる</button><button class="danger" id="dlgYes">削除する</button></div></div></div>
@@ -195,7 +205,7 @@
   </div>
   <input type="file" id="importFile" accept="application/json,.json" hidden />
   <p class="snote" id="bkNote"></p>
-  <p class="snote">右にスワイプで完了、左にスワイプでゴミ箱。文字をタップすると書き直せます。</p>
+  <p class="snote">左の ○ を押すか右にスワイプで完了、左にスワイプでゴミ箱。文字をタップすると書き直せます。何行かまとめて貼りつけると、1行ずつ別の項目になります。</p>
   <div id="versionLabel"></div>
 </div>
 
@@ -221,11 +231,12 @@
   const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
 
   // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
-  const APP_VERSION = '1.5.0';
+  const APP_VERSION = '1.6.0';
 
   // ---------- 状態 ----------
   // item: { id, title, fav, createdAt, updatedAt, status: undefined(=受け箱) | 'done' | 'trash', doneAt, trashedAt }
   const state = { items: [], filter: 'all', view: 'inbox', editing: null };
+  let freshId = null;
   const FILTER_KEY = 'inbox.filter';
   try { if (localStorage.getItem(FILTER_KEY) === 'fav') state.filter = 'fav'; } catch (e) {}
   async function loadAll() { state.items = await getAll('items'); }
@@ -248,6 +259,7 @@
 
   // ---------- 表示 ----------
   const STAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg>';
+  const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
   const UNDO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>';
   const ICON_DONE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.7 2.7L16.5 9"/></svg>';
   const ICON_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/></svg>';
@@ -265,20 +277,21 @@
   function renderTop() {
     const c = counts(), top = $('#top');
     if (state.view === 'inbox') {
-      top.innerHTML = '<h1>INBOX</h1><span class="count">' + (c.inbox ? c.inbox + '件' + (c.fav ? ' ・ ★' + c.fav : '') : '') + '</span>'
-        + '<span class="swhint" aria-hidden="true"><span><b class="g">→</b><i>右で</i>完了</span><span><b class="r">←</b><i>左で</i>ゴミ箱</span></span>'
+      top.className = 'top';
+      top.innerHTML = '<div class="ttl"><h1>INBOX</h1><span class="count">' + (c.inbox ? c.inbox + '件' + (c.fav ? ' ・ ★' + c.fav : '') : '') + '</span></div>'
         + '<div class="tools"><button class="tbtn" data-go="done" aria-label="完了">' + ICON_DONE + (c.done ? '<span>' + c.done + '</span>' : '') + '</button>'
         + '<button class="tbtn" data-go="trash" aria-label="ゴミ箱">' + ICON_TRASH + (c.trash ? '<span>' + c.trash + '</span>' : '') + '</button>'
         + '<button class="tbtn" id="gearBtn" aria-label="設定">' + ICON_MORE + '</button></div>';
     } else {
       const isDone = state.view === 'done';
-      top.innerHTML = '<button class="back" data-go="inbox"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg>INBOX</button>'
-        + '<span class="vtitle">' + (isDone ? '完了' : 'ゴミ箱') + '</span><span class="count">' + (c[state.view] || '') + (c[state.view] ? '件' : '') + '</span>'
-        + (isDone ? '' : '<button class="emptyTrash" id="emptyTrash"' + (c.trash ? '' : ' disabled') + '>空にする</button>');
+      top.className = 'top sub';
+      top.innerHTML = '<div class="navrow"><button class="back" data-go="inbox"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg>INBOX</button>'
+        + (isDone ? '' : '<button class="emptyTrash" id="emptyTrash"' + (c.trash ? '' : ' disabled') + '>空にする</button>') + '</div>'
+        + '<div class="ttl"><h1>' + (isDone ? '完了' : 'ゴミ箱') + '</h1><span class="count">' + (c[state.view] ? c[state.view] + '件' : '') + '</span></div>';
     }
   }
   function render() {
-    document.body.className = 'view-' + state.view + (document.body.classList.contains('keyboard-open') ? ' keyboard-open' : '');
+    document.body.className = 'view-' + state.view + (document.body.classList.contains('typing') ? ' typing' : '');
     renderTop();
     document.querySelectorAll('#seg button').forEach((b) => b.classList.toggle('on', b.dataset.f === state.filter));
     const v = state.view;
@@ -286,13 +299,13 @@
     if (v === 'inbox' && state.filter === 'fav') list = list.filter((i) => i.fav);
     list.sort((a, b) => whenOf(b, v) - whenOf(a, v));
     const box = $('#list');
-    let html = v === 'done' ? '<p class="vhint">完了したものです。右にスワイプか ↩ で受け箱に戻せます。</p>'
+    let html = v === 'done' ? '<p class="vhint">完了したものです。○ を押すか右にスワイプで受け箱に戻せます。</p>'
       : v === 'trash' ? '<p class="vhint">右にスワイプか ↩ で受け箱に戻せます。左にスワイプで完全に削除。</p>' : '';
     if (!list.length) {
       box.innerHTML = html + (v === 'done' ? '<div class="empty"><b>✓</b>完了したものは まだありません。<br>受け箱で 右にスワイプすると ここに入ります。</div>'
         : v === 'trash' ? '<div class="empty"><b>🗑</b>ゴミ箱は からっぽです。</div>'
         : state.filter === 'fav' ? '<div class="empty"><b>☆</b>お気に入りはまだありません。<br>行の右の ☆ をタップすると入ります。</div>'
-        : '<div class="empty"><b>📥</b>なんでも、ここに放りこもう。<br>下の欄に書いて、追加するだけ。<br><small style="font-size:12px;opacity:.8">右にスワイプで完了・左にスワイプでゴミ箱</small></div>');
+        : '<div class="empty"><b>📥</b>なんでも、ここに放りこもう。<br>上の欄に書いて、改行で追加。<small>○ で完了・左にスワイプでゴミ箱</small></div>');
       return;
     }
     let cur = null;
@@ -302,9 +315,11 @@
       if (b !== cur) { if (cur !== null) html += '</div>'; html += '<div class="day">' + b + '</div><div class="group">'; cur = b; }
       const right = v === 'inbox'
         ? '<button class="star" aria-label="お気に入り">' + STAR + '</button>'
+        : v === 'done' ? '<span class="when">' + md(whenOf(it, v)) + '</span>'
         : '<span class="when">' + md(whenOf(it, v)) + '</span><button class="undo" aria-label="受け箱に戻す">' + UNDO + '</button>';
-      html += '<div class="row' + (it.fav ? ' fav' : '') + (v !== 'inbox' ? ' ' + v : '') + '" data-id="' + it.id + '">'
-        + '<div class="bg"><span class="l">' + sw.right + '</span><span class="r">' + sw.left + '</span></div><div class="inner">'
+      const left = v === 'trash' ? '' : '<button class="chk" aria-label="' + (v === 'done' ? '受け箱に戻す' : '完了') + '">' + CHECK + '</button>';
+      html += '<div class="row' + (it.id === freshId ? ' fresh' : '') + (it.fav ? ' fav' : '') + (v !== 'inbox' ? ' ' + v : '') + '" data-id="' + it.id + '">'
+        + '<div class="bg"><span class="l">' + sw.right + '</span><span class="r">' + sw.left + '</span></div><div class="inner">' + left
         + (state.editing === it.id ? '<input class="edit" type="text" enterkeyhint="done" value="' + esc(it.title) + '" />' : '<div class="t">' + esc(it.title) + '</div>')
         + right + '</div></div>';
     }
@@ -334,19 +349,36 @@
     el.addEventListener('compositionend', () => { composing = false; compEndAt = Date.now(); });
   }
   watchIme(input);
-  const syncBtn = () => { $('#addBtn').disabled = !input.value.trim(); };
-  input.addEventListener('input', syncBtn);
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && imeBusy(e)) e.preventDefault(); });
+  // 入力欄は文字に合わせて高さがのびる（4行まで）
+  const grow = () => { input.style.height = '26px'; input.style.height = Math.min(input.scrollHeight, 128) + 'px'; };
+  const syncBtn = () => { $('#composer').classList.toggle('has', !!input.value.trim()); grow(); };
+  input.addEventListener('input', () => {
+    // 改行（貼りつけ以外）は「追加」として扱う。何行かまとめて貼ったときは1行ずつ追加
+    if (/\n/.test(input.value) && !composing) { addItem(); return; }
+    syncBtn();
+  });
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); if (!imeBusy(e)) addItem(); } });
+  input.addEventListener('focus', () => { $('#composer').classList.add('focus'); document.body.classList.add('typing'); });
+  input.addEventListener('blur', () => { $('#composer').classList.remove('focus'); document.body.classList.remove('typing'); });
   $('#composer').addEventListener('submit', (e) => { e.preventDefault(); addItem(); });
-  // ↑ボタンを押してもキーボードが閉じないように
+  // 「追加」を押してもキーボードが閉じないように（続けて入れられる）
   $('#addBtn').addEventListener('pointerdown', (e) => { if (document.activeElement === input) e.preventDefault(); });
+  // 欄のどこを押しても入力できるように
+  $('#composer').addEventListener('click', (e) => { if (!e.target.closest('#addBtn')) input.focus(); });
+  // 親指の「＋」：上の入力欄へ
+  $('#fab').addEventListener('click', () => { if (state.view !== 'inbox') go('inbox'); input.focus(); $('#list').scrollTop = 0; });
   async function addItem() {
-    const title = input.value.trim(); if (!title) return;
-    const now = Date.now();
-    const it = { id: uid(), title, fav: state.filter === 'fav', createdAt: now, updatedAt: now };
-    state.items.push(it); await put('items', it);
+    const lines = input.value.split(/\n+/).map((x) => x.trim()).filter(Boolean);
     input.value = ''; syncBtn();
-    render(); $('#list').scrollTop = 0;
+    if (!lines.length) return;
+    let now = Date.now(), last = null;
+    for (const title of lines) {
+      const it = { id: uid(), title, fav: state.filter === 'fav', createdAt: now, updatedAt: now };
+      now++; state.items.push(it); await put('items', it); last = it;
+    }
+    freshId = last.id; render(); freshId = null;
+    $('#list').scrollTop = 0;
+    if (lines.length > 1) toast(lines.length + '件 追加しました');
   }
 
   // ---------- 状態を変える（完了・ゴミ箱・戻す・完全に削除） ----------
@@ -371,6 +403,10 @@
     const row = e.target.closest('.row'); if (!row) return;
     const it = state.items.find((x) => x.id === row.dataset.id); if (!it) return;
     if (e.target.closest('.undo')) { moveTo(it, 'inbox'); return; }
+    if (e.target.closest('.chk')) {
+      if (state.view === 'done') { moveTo(it, 'inbox'); return; }
+      row.classList.add('checking'); setTimeout(() => moveTo(it, 'done'), 380); return;
+    }
     if (e.target.closest('.star')) {
       it.fav = !it.fav; it.updatedAt = Date.now(); await put('items', it);
       if (state.filter === 'fav' && !it.fav) { render(); toast('お気に入りから はずしました', '戻す', async () => { it.fav = true; it.updatedAt = Date.now(); await put('items', it); render(); }); }
@@ -406,7 +442,7 @@
     const list = $('#list');
     let row = null, inner = null, x0 = 0, y0 = 0, dx = 0, mode = '';
     list.addEventListener('pointerdown', (e) => {
-      if (e.target.closest('.star, .undo, .edit')) return;
+      if (e.target.closest('.star, .undo, .edit, .chk')) return;
       row = e.target.closest('.row'); if (!row) return;
       inner = row.querySelector('.inner'); x0 = e.clientX; y0 = e.clientY; dx = 0; mode = ''; swipeMoved = false;
     });
@@ -466,7 +502,7 @@
 
   // ---------- カラー ----------
   const THEMES = [
-    { k: 'navy', l: 'ネイビー', c: '#2E3A59', bg: '#F4F2EE' },
+    { k: 'navy', l: 'ネイビー', c: '#2E3A59', bg: '#F2F2F7' },
     { k: 'turquoise', l: 'ターコイズ', c: '#0E9494', bg: '#ECF6F5' },
     { k: 'sakura', l: 'さくら', c: '#C2557A', bg: '#F9F1F2' },
     { k: 'mori', l: 'もり', c: '#3D7A4E', bg: '#F0F3EC' },
@@ -553,30 +589,20 @@
     if (!(navigator.maxTouchPoints > 0)) setTimeout(() => input.focus(), 150);
   })();
 
-  // ---------- visualViewport（キーボード対策） ----------
+  // ---------- キーボード対策 ----------
+  // 入力欄は上にあるので、画面は動かさない。キーボードの高さだけ測って、一覧の下に余白をつける（最後まで見られるように）
   function setupViewportTracking() {
     const vv = window.visualViewport; if (!vv) return;
-    const root = document.documentElement; let baseHeight = vv.height, lastH = -1, lastT = -1;
-    // アプリ全体を「いま見えている範囲」（キーボードの上）にぴったり重ねる
-    function apply() {
-      const h = Math.round(vv.height), t = Math.max(0, Math.round(vv.offsetTop));
-      if (h !== lastH) { root.style.setProperty('--app-height', h + 'px'); lastH = h; }
-      if (t !== lastT) { root.style.setProperty('--app-top', t + 'px'); lastT = t; }
-      document.body.classList.toggle('keyboard-open', h < baseHeight - 120);
-    }
-    // iPhone はキーボードの出入りで見える範囲を少しずつ動かし、そのたびに通知が来ないことがあるので、
-    // 入力中（とその前後）は毎フレーム追いかける
-    let until = 0, looping = false;
-    function follow(ms) {
-      until = Math.max(until, performance.now() + ms);
-      if (looping) return; looping = true;
-      const tick = () => { apply(); const typing = document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName); if (typing || performance.now() < until) requestAnimationFrame(tick); else looping = false; };
-      requestAnimationFrame(tick);
-    }
-    vv.addEventListener('resize', () => follow(600)); vv.addEventListener('scroll', () => follow(600));
-    document.addEventListener('focusin', () => follow(1200));
-    document.addEventListener('focusout', () => follow(1200));
-    window.addEventListener('orientationchange', () => { setTimeout(() => { baseHeight = vv.height; follow(600); }, 300); });
+    const root = document.documentElement;
+    const apply = () => {
+      const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+      root.style.setProperty('--kb', kb + 'px');
+      // iPhone が勝手に画面をずらしたら戻す
+      if (window.scrollY || document.documentElement.scrollTop) window.scrollTo(0, 0);
+    };
+    vv.addEventListener('resize', apply); vv.addEventListener('scroll', apply);
+    document.addEventListener('focusin', () => setTimeout(apply, 300));
+    document.addEventListener('focusout', () => setTimeout(apply, 300));
     apply();
   }
 
