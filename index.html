@@ -105,6 +105,12 @@
   .row .inner.drag { transition: none; }
   .row .chk { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; border: 1.6px solid var(--tertiary); background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: transparent; padding: 0; transition: all .18s; position: relative; }
   .row .chk::after { content: ''; position: absolute; inset: -10px; }
+  .row .chk { touch-action: manipulation; }
+  /* 1回目のタップ：もう一度で完了 */
+  .row.armed .chk { border-color: var(--accent); border-width: 2px; box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); animation: armed .9s ease-in-out infinite; }
+  .row.armed .chk { position: relative; }
+  .row.armed .chk::before { content: ''; position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--accent); }
+  @keyframes armed { 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 10%, transparent); } }
   .row .chk svg { width: 14px; height: 14px; }
   .row.checking .chk, .row.done .chk { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .row.checking .t { color: var(--secondary); }
@@ -231,7 +237,7 @@
   const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
 
   // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
-  const APP_VERSION = '1.7.0';
+  const APP_VERSION = '1.8.0';
 
   // ---------- 状態 ----------
   // item: { id, title, fav, createdAt, updatedAt, status: undefined(=受け箱) | 'done' | 'trash', doneAt, trashedAt }
@@ -407,6 +413,8 @@
   }
 
   // ---------- お気に入り・戻す・書き直し ----------
+  let armedId = null, armedT = null;
+  function disarm() { clearTimeout(armedT); armedId = null; document.querySelectorAll('.row.armed').forEach((r) => r.classList.remove('armed')); }
   $('#list').addEventListener('click', async (e) => {
     if (swipeMoved) return;
     const row = e.target.closest('.row'); if (!row) return;
@@ -414,7 +422,14 @@
     if (e.target.closest('.undo')) { moveTo(it, 'inbox'); return; }
     if (e.target.closest('.chk')) {
       if (state.view === 'done') { moveTo(it, 'inbox'); return; }
-      row.classList.add('checking'); setTimeout(() => moveTo(it, 'done'), 380); return;
+      // 完了はダブルタップ（うっかり押しを防ぐ）。1回目は「もう一度で完了」の印だけ
+      if (armedId !== it.id) {
+        disarm(); armedId = it.id; row.classList.add('armed');
+        armedT = setTimeout(disarm, 1400);
+        try { const n = +(localStorage.getItem('inbox.chkHint') || 0); if (n < 3) { localStorage.setItem('inbox.chkHint', String(n + 1)); toast('もう一度タップで完了'); } } catch (_) {}
+        return;
+      }
+      disarm(); row.classList.add('checking'); setTimeout(() => moveTo(it, 'done'), 380); return;
     }
     if (e.target.closest('.star')) {
       it.fav = !it.fav; it.updatedAt = Date.now(); await put('items', it);
