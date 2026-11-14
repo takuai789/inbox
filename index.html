@@ -115,7 +115,7 @@
   .row.fresh .inner { animation: fresh 1.2s ease; }
   @keyframes fresh { 0% { background: color-mix(in srgb, var(--accent) 14%, var(--card)); } 100% { background: var(--card); } }
   .row .when { font-size: 12px; color: var(--tertiary); white-space: nowrap; }
-  .row .edit { flex: 1; min-width: 0; font: inherit; font-size: 17px; line-height: 1.45; border: 0; outline: none; background: rgba(245,185,66,.16); border-radius: 8px; padding: 3px 8px; margin: -3px -8px; color: var(--ink); -webkit-appearance: none; appearance: none; -webkit-user-select: text; user-select: text; }
+  .row .edit { flex: 1; min-width: 0; display: block; font: inherit; font-size: 17px; line-height: 1.45; border: 0; outline: none; background: rgba(245,185,66,.16); border-radius: 10px; padding: 6px 10px; margin: -6px -10px; color: var(--ink); -webkit-appearance: none; appearance: none; resize: none; overflow: hidden; height: auto; word-break: break-word; }
   .row .star, .row .undo { flex-shrink: 0; width: 40px; height: 40px; border: 0; background: none; cursor: pointer; color: rgba(60,60,67,.22); display: flex; align-items: center; justify-content: center; }
   [data-theme="sumi"] .row .star { color: rgba(236,237,240,.25); }
   .row .star svg { width: 21px; height: 21px; }
@@ -231,11 +231,11 @@
   const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
 
   // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
-  const APP_VERSION = '1.6.0';
+  const APP_VERSION = '1.7.0';
 
   // ---------- 状態 ----------
   // item: { id, title, fav, createdAt, updatedAt, status: undefined(=受け箱) | 'done' | 'trash', doneAt, trashedAt }
-  const state = { items: [], filter: 'all', view: 'inbox', editing: null };
+  const state = { items: [], filter: 'all', view: 'inbox', editing: null, editCaret: null };
   let freshId = null;
   const FILTER_KEY = 'inbox.filter';
   try { if (localStorage.getItem(FILTER_KEY) === 'fav') state.filter = 'fav'; } catch (e) {}
@@ -320,12 +320,21 @@
       const left = v === 'trash' ? '' : '<button class="chk" aria-label="' + (v === 'done' ? '受け箱に戻す' : '完了') + '">' + CHECK + '</button>';
       html += '<div class="row' + (it.id === freshId ? ' fresh' : '') + (it.fav ? ' fav' : '') + (v !== 'inbox' ? ' ' + v : '') + '" data-id="' + it.id + '">'
         + '<div class="bg"><span class="l">' + sw.right + '</span><span class="r">' + sw.left + '</span></div><div class="inner">' + left
-        + (state.editing === it.id ? '<input class="edit" type="text" enterkeyhint="done" value="' + esc(it.title) + '" />' : '<div class="t">' + esc(it.title) + '</div>')
+        + (state.editing === it.id ? '<textarea class="edit" rows="1" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false">' + esc(it.title) + '</textarea>' : '<div class="t">' + esc(it.title) + '</div>')
         + right + '</div></div>';
     }
     box.innerHTML = html + '</div>';
     const ed = box.querySelector('.edit');
-    if (ed) { bindEdit(ed); ed.focus(); try { ed.setSelectionRange(ed.value.length, ed.value.length); } catch (_) {} }
+    if (ed) {
+      bindEdit(ed); growEdit(ed);
+      // タップした文字の位置にカーソルを置く（わからなければ末尾）
+      const pos = state.editCaret == null ? ed.value.length : Math.min(state.editCaret, ed.value.length);
+      ed.focus({ preventScroll: true });
+      try { ed.setSelectionRange(pos, pos); } catch (_) {}
+      state.editCaret = null;
+      // キーボードが出たあと、書き直している行が見える位置まで動かす
+      setTimeout(() => { const r = ed.closest('.row'); if (r && document.activeElement === ed) r.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 380);
+    }
   }
   function go(view) { state.view = view; state.editing = null; render(); $('#list').scrollTop = 0; }
   $('#top').addEventListener('click', async (e) => {
@@ -413,8 +422,22 @@
       else { row.classList.toggle('fav', it.fav); renderTop(); }
       return;
     }
-    if (e.target.closest('.t') && state.view !== 'trash') { state.editing = it.id; render(); }
+    const tEl = e.target.closest('.t');
+    if (tEl && state.view !== 'trash') { state.editCaret = caretAt(tEl, e.clientX, e.clientY); state.editing = it.id; render(); }
   });
+  // タップした位置が、タイトルの何文字目かを調べる
+  function caretAt(el, x, y) {
+    try {
+      let node = null, off = 0;
+      if (document.caretRangeFromPoint) { const r = document.caretRangeFromPoint(x, y); if (r) { node = r.startContainer; off = r.startOffset; } }
+      else if (document.caretPositionFromPoint) { const p = document.caretPositionFromPoint(x, y); if (p) { node = p.offsetNode; off = p.offset; } }
+      if (!node || !el.contains(node)) return null;
+      let n = 0; const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      while (w.nextNode()) { if (w.currentNode === node) return n + off; n += w.currentNode.textContent.length; }
+    } catch (_) {}
+    return null;
+  }
+  function growEdit(ed) { ed.style.height = 'auto'; ed.style.height = ed.scrollHeight + 'px'; }
   function bindEdit(ed) {
     let done = false;
     const myId = state.editing; // この入力欄が書き直している項目
@@ -428,6 +451,10 @@
       else { const t = document.querySelector('.row[data-id="' + myId + '"] .t'); if (t && it) t.textContent = it.title; }
     };
     watchIme(ed);
+    ed.addEventListener('input', () => {
+      if (/\n/.test(ed.value)) { const p = ed.selectionStart; ed.value = ed.value.replace(/\s*\n\s*/g, ' '); try { ed.setSelectionRange(p, p); } catch (_) {} }
+      growEdit(ed);
+    });
     ed.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); if (!imeBusy(e)) finish(true); }
       if (e.key === 'Escape') finish(false);
