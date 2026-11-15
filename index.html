@@ -155,6 +155,24 @@
   .dlg button { border: 0; border-radius: 10px; padding: 11px; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; background: var(--chip); color: var(--ink); }
   .dlg button.danger { background: var(--red); color: #fff; }
 
+  /* 行：タップで完了（ダブルタップ）、長押しで書き直し */
+  .row .inner { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; cursor: pointer; }
+  .row.pressing .inner { background: color-mix(in srgb, var(--ink) 6%, var(--card)); transition: background .4s; }
+  /* 書き直し画面 */
+  .ed { position: fixed; inset: 0; z-index: 70; background: var(--bg); display: flex; flex-direction: column; padding-top: var(--safe-top); transform: translateY(100%); transition: transform .3s cubic-bezier(.32,.72,0,1); }
+  .ed.show { transform: none; }
+  .ed-nav { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px; }
+  .ed-nav h3 { font-size: 17px; }
+  .ed-nav button { border: 0; background: none; font: inherit; font-size: 17px; color: var(--accent); padding: 8px 10px; cursor: pointer; }
+  .ed-nav button.b { font-weight: 700; }
+  .ed-body { padding: 6px 16px 16px; overflow-y: auto; }
+  #edText { width: 100%; min-height: 160px; border: 0; border-radius: 14px; background: var(--card); color: var(--ink); font: inherit; font-size: 18px; line-height: 1.6; padding: 14px 16px; outline: none; resize: none; -webkit-appearance: none; appearance: none; }
+  .ed-acts { display: flex; gap: 10px; margin-top: 14px; }
+  .ed-acts button { flex: 1; border: 0; border-radius: 12px; background: var(--card); font: inherit; font-size: 15px; font-weight: 600; color: var(--ink); padding: 13px 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .ed-acts button svg { width: 18px; height: 18px; }
+  .ed-acts button.on { color: var(--amber); }
+  .ed-acts button.on svg path { fill: var(--amber); }
+  .ed-acts button.del { color: var(--red); }
   /* 設定 */
   .sheetBg { position: fixed; inset: 0; background: rgba(0,0,0,.3); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 60; }
   .sheetBg.show { opacity: 1; pointer-events: auto; }
@@ -199,6 +217,14 @@
 <div class="toast" id="toast"><span></span><button></button></div>
 <div class="dlgBg" id="dlgBg"><div class="dlg"><p id="dlgMsg"></p><div class="btns"><button id="dlgNo">やめる</button><button class="danger" id="dlgYes">削除する</button></div></div></div>
 
+<div class="ed" id="ed">
+  <div class="ed-nav"><button id="edCancel">やめる</button><h3>書き直す</h3><button class="b" id="edSave">保存</button></div>
+  <div class="ed-body">
+    <textarea id="edText" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+    <div class="ed-acts"><button id="edFav"></button><button class="del" id="edTrash">ゴミ箱へ</button></div>
+  </div>
+</div>
+
 <div class="sheetBg" id="sheetBg"></div>
 <div class="sheet" id="sheet">
   <div class="grab"></div>
@@ -211,7 +237,7 @@
   </div>
   <input type="file" id="importFile" accept="application/json,.json" hidden />
   <p class="snote" id="bkNote"></p>
-  <p class="snote">左の ○ を押すか右にスワイプで完了、左にスワイプでゴミ箱。文字をタップすると書き直せます。何行かまとめて貼りつけると、1行ずつ別の項目になります。</p>
+  <p class="snote">項目をダブルタップするか右にスワイプで完了、左にスワイプでゴミ箱。長押しすると書き直せます。何行かまとめて貼りつけると、1行ずつ別の項目になります。</p>
   <div id="versionLabel"></div>
 </div>
 
@@ -237,7 +263,7 @@
   const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
 
   // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
-  const APP_VERSION = '1.8.0';
+  const APP_VERSION = '1.9.0';
 
   // ---------- 状態 ----------
   // item: { id, title, fav, createdAt, updatedAt, status: undefined(=受け箱) | 'done' | 'trash', doneAt, trashedAt }
@@ -420,7 +446,8 @@
     const row = e.target.closest('.row'); if (!row) return;
     const it = state.items.find((x) => x.id === row.dataset.id); if (!it) return;
     if (e.target.closest('.undo')) { moveTo(it, 'inbox'); return; }
-    if (e.target.closest('.chk')) {
+    if (longFired) { longFired = false; return; }
+    if (!e.target.closest('.star') && state.view !== 'trash') {
       if (state.view === 'done') { moveTo(it, 'inbox'); return; }
       // 完了はダブルタップ（うっかり押しを防ぐ）。1回目は「もう一度で完了」の印だけ
       if (armedId !== it.id) {
@@ -437,9 +464,51 @@
       else { row.classList.toggle('fav', it.fav); renderTop(); }
       return;
     }
-    const tEl = e.target.closest('.t');
-    if (tEl && state.view !== 'trash') { state.editCaret = caretAt(tEl, e.clientX, e.clientY); state.editing = it.id; render(); }
   });
+
+  // ---------- 長押しで書き直し画面 ----------
+  let longFired = false, lpT = null, lpRow = null, lpXY = null;
+  const list0 = $('#list');
+  list0.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.star, .undo') || state.view === 'trash') return;
+    const r = e.target.closest('.row'); if (!r) return;
+    lpRow = r; lpXY = [e.clientX, e.clientY]; longFired = false; clearTimeout(lpT);
+    r.classList.add('pressing');
+    lpT = setTimeout(() => {
+      if (!lpRow) return; longFired = true; lpRow.classList.remove('pressing');
+      if (navigator.vibrate) navigator.vibrate(10);
+      disarm(); openEditor(lpRow.dataset.id); lpRow = null;
+    }, 480);
+  });
+  const lpCancel = () => { clearTimeout(lpT); if (lpRow) lpRow.classList.remove('pressing'); lpRow = null; };
+  list0.addEventListener('pointermove', (e) => { if (lpRow && Math.hypot(e.clientX - lpXY[0], e.clientY - lpXY[1]) > 8) lpCancel(); });
+  list0.addEventListener('pointerup', lpCancel); list0.addEventListener('pointercancel', lpCancel);
+  list0.addEventListener('contextmenu', (e) => { if (e.target.closest('.row')) e.preventDefault(); });
+
+  let edId = null;
+  function renderEdFav(on) { $('#edFav').classList.toggle('on', on); $('#edFav').innerHTML = STAR + (on ? 'お気に入り' : 'お気に入りにする'); }
+  function openEditor(id) {
+    const it = state.items.find((x) => x.id === id); if (!it) return;
+    edId = id; $('#edText').value = it.title; renderEdFav(!!it.fav);
+    $('#edTrash').style.display = statusOf(it) === 'trash' ? 'none' : '';
+    $('#ed').classList.add('show');
+    const t = $('#edText'); t.focus({ preventScroll: true }); try { t.setSelectionRange(t.value.length, t.value.length); } catch (_) {}
+  }
+  function closeEditor() { $('#ed').classList.remove('show'); if (document.activeElement) document.activeElement.blur(); edId = null; }
+  async function saveEditor() {
+    const it = state.items.find((x) => x.id === edId); if (!it) return closeEditor();
+    const v = $('#edText').value.replace(/\s*\n\s*/g, ' ').trim();
+    if (!v) { toast('文字を入れてください'); return; }
+    const fav = $('#edFav').classList.contains('on');
+    if (v !== it.title || fav !== !!it.fav) { it.title = v; it.fav = fav; it.updatedAt = Date.now(); await put('items', it); }
+    closeEditor(); render();
+  }
+  $('#edCancel').onclick = closeEditor;
+  $('#edSave').onclick = saveEditor;
+  $('#edFav').onclick = () => renderEdFav(!$('#edFav').classList.contains('on'));
+  $('#edTrash').onclick = async () => { const it = state.items.find((x) => x.id === edId); closeEditor(); if (it) moveTo(it, 'trash'); };
+  watchIme($('#edText'));
+  $('#edText').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); if (!imeBusy(e)) saveEditor(); } });
   // タップした位置が、タイトルの何文字目かを調べる
   function caretAt(el, x, y) {
     try {
