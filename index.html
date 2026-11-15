@@ -175,6 +175,13 @@
   .ed-acts button.on { color: var(--amber); }
   .ed-acts button.on svg path { fill: var(--amber); }
   .ed-acts button.del { color: var(--red); }
+  /* 追加パネル（＋で上から出る） */
+  .addBg { position: fixed; inset: 0; z-index: 64; background: rgba(0,0,0,.28); opacity: 0; pointer-events: none; transition: opacity .25s; }
+  .addBg.show { opacity: 1; pointer-events: auto; }
+  .addPanel { position: fixed; left: 0; right: 0; top: 0; z-index: 65; max-width: 640px; margin: 0 auto; background: var(--bg); border-radius: 0 0 20px 20px; padding: var(--safe-top) 0 6px; box-shadow: 0 10px 30px rgba(0,0,0,.18); transform: translateY(-110%); transition: transform .3s cubic-bezier(.32,.72,0,1); }
+  .addPanel.show { transform: none; }
+  .addPanel .composer { margin: 0 16px 6px; }
+  .add-note { font-size: 12px; color: var(--secondary); margin: 4px 22px 10px; min-height: 1.5em; }
   /* 設定 */
   .sheetBg { position: fixed; inset: 0; background: rgba(0,0,0,.3); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 60; }
   .sheetBg.show { opacity: 1; pointer-events: auto; }
@@ -207,12 +214,17 @@
     <button data-f="all" class="on">すべて</button>
     <button data-f="fav"><span class="st">★</span> お気に入り</button>
   </div>
+  <div class="list" id="list"></div>
+</div>
+<div class="addBg" id="addBg"></div>
+<div class="addPanel" id="addPanel">
+  <div class="ed-nav"><button id="addClose">閉じる</button><h3>追加</h3><span style="width:64px"></span></div>
   <form class="composer" id="composer">
     <span class="plus" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
     <textarea id="input" rows="1" placeholder="気になったこと・やること" enterkeyhint="send" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
     <button class="add" id="addBtn" type="submit" aria-label="追加">追加</button>
   </form>
-  <div class="list" id="list"></div>
+  <p class="add-note" id="addNote">改行（送信）で追加。続けて何件でも入れられます</p>
 </div>
 <button class="fab" id="fab" aria-label="書く"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
 
@@ -240,7 +252,7 @@
   </div>
   <input type="file" id="importFile" accept="application/json,.json" hidden />
   <p class="snote" id="bkNote"></p>
-  <p class="snote">項目をダブルタップするか右にスワイプで完了、左にスワイプでゴミ箱。長押しすると書き直せます。何行かまとめて貼りつけると、1行ずつ別の項目になります。</p>
+  <p class="snote">右下の ＋ で追加。項目をダブルタップするか右にスワイプで完了、左にスワイプでゴミ箱。長押しすると書き直せます。何行かまとめて貼りつけると、1行ずつ別の項目になります。</p>
   <div id="versionLabel"></div>
 </div>
 
@@ -266,7 +278,7 @@
   const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
 
   // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
-  const APP_VERSION = '1.9.1';
+  const APP_VERSION = '1.10.0';
 
   // ---------- 状態 ----------
   // item: { id, title, fav, createdAt, updatedAt, status: undefined(=受け箱) | 'done' | 'trash', doneAt, trashedAt }
@@ -340,7 +352,7 @@
       box.innerHTML = html + (v === 'done' ? '<div class="empty"><b>✓</b>完了したものは まだありません。<br>受け箱で 右にスワイプすると ここに入ります。</div>'
         : v === 'trash' ? '<div class="empty"><b>🗑</b>ゴミ箱は からっぽです。</div>'
         : state.filter === 'fav' ? '<div class="empty"><b>☆</b>お気に入りはまだありません。<br>行の右の ☆ をタップすると入ります。</div>'
-        : '<div class="empty"><b>📥</b>なんでも、ここに放りこもう。<br>上の欄に書いて、改行で追加。<small>○ で完了・左にスワイプでゴミ箱</small></div>');
+        : '<div class="empty"><b>📥</b>なんでも、ここに放りこもう。<br>右下の ＋ から書いて、改行で追加。<small>ダブルタップで完了・長押しで書き直し・左にスワイプでゴミ箱</small></div>');
       return;
     }
     let cur = null;
@@ -410,7 +422,18 @@
   // 欄のどこを押しても入力できるように
   $('#composer').addEventListener('click', (e) => { if (!e.target.closest('#addBtn')) input.focus(); });
   // 親指の「＋」：上の入力欄へ
-  $('#fab').addEventListener('click', () => { if (state.view !== 'inbox') go('inbox'); input.focus(); $('#list').scrollTop = 0; });
+  // 親指の「＋」：上から追加パネルを出す（入力欄はふだんは出さない）
+  let addedN = 0;
+  function openAdd() {
+    if (state.view !== 'inbox') go('inbox');
+    addedN = 0; $('#addNote').textContent = '改行（送信）で追加。続けて何件でも入れられます';
+    $('#addBg').classList.add('show'); $('#addPanel').classList.add('show');
+    input.focus({ preventScroll: true });
+  }
+  function closeAdd() { $('#addBg').classList.remove('show'); $('#addPanel').classList.remove('show'); input.blur(); }
+  $('#fab').addEventListener('click', openAdd);
+  $('#addClose').addEventListener('click', closeAdd);
+  $('#addBg').addEventListener('click', closeAdd);
   async function addItem() {
     const lines = input.value.split(/\n+/).map((x) => x.trim()).filter(Boolean);
     input.value = ''; syncBtn();
@@ -422,7 +445,7 @@
     }
     freshId = last.id; render(); freshId = null;
     $('#list').scrollTop = 0;
-    if (lines.length > 1) toast(lines.length + '件 追加しました');
+    addedN += lines.length; $('#addNote').textContent = '✓ ' + addedN + '件 追加しました。続けて入れられます';
   }
 
   // ---------- 状態を変える（完了・ゴミ箱・戻す・完全に削除） ----------
@@ -708,7 +731,6 @@
     applyTheme(document.documentElement.dataset.theme || 'navy');
     await openDB(); await loadAll(); render();
     // iPhone/iPad では自動でフォーカスしない（キーボードが出ないまま「フォーカス済み」になり、タップしても入力できなくなるため）
-    if (!(navigator.maxTouchPoints > 0)) setTimeout(() => input.focus(), 150);
   })();
 
   // ---------- キーボード対策 ----------
