@@ -161,6 +161,8 @@
   /* 書き直し画面 */
   .ed { position: fixed; inset: 0; z-index: 70; background: var(--bg); display: flex; flex-direction: column; padding-top: var(--safe-top); transform: translateY(100%); transition: transform .3s cubic-bezier(.32,.72,0,1); }
   .ed.show { transform: none; }
+  .ed.lock { pointer-events: none; } /* 長押しの指をはなすまで（＋少し）さわれない＝うっかりタップ防止 */
+  .ed-trash { display: block; margin: 28px auto 0; border: 0; background: none; font: inherit; font-size: 14px; color: var(--red); padding: 10px 16px; cursor: pointer; }
   .ed-nav { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px; }
   .ed-nav h3 { font-size: 17px; }
   .ed-nav button { border: 0; background: none; font: inherit; font-size: 17px; color: var(--accent); padding: 8px 10px; cursor: pointer; }
@@ -221,7 +223,8 @@
   <div class="ed-nav"><button id="edCancel">やめる</button><h3>書き直す</h3><button class="b" id="edSave">保存</button></div>
   <div class="ed-body">
     <textarea id="edText" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
-    <div class="ed-acts"><button id="edFav"></button><button class="del" id="edTrash">ゴミ箱へ</button></div>
+    <div class="ed-acts"><button id="edFav"></button></div>
+    <button class="ed-trash" id="edTrash">この項目をゴミ箱へ</button>
   </div>
 </div>
 
@@ -263,7 +266,7 @@
   const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
 
   // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
-  const APP_VERSION = '1.9.0';
+  const APP_VERSION = '1.9.1';
 
   // ---------- 状態 ----------
   // item: { id, title, fav, createdAt, updatedAt, status: undefined(=受け箱) | 'done' | 'trash', doneAt, trashedAt }
@@ -477,7 +480,7 @@
     lpT = setTimeout(() => {
       if (!lpRow) return; longFired = true; lpRow.classList.remove('pressing');
       if (navigator.vibrate) navigator.vibrate(10);
-      disarm(); openEditor(lpRow.dataset.id); lpRow = null;
+      disarm(); lockEditor(); openEditor(lpRow.dataset.id); lpRow = null;
     }, 480);
   });
   const lpCancel = () => { clearTimeout(lpT); if (lpRow) lpRow.classList.remove('pressing'); lpRow = null; };
@@ -485,11 +488,19 @@
   list0.addEventListener('pointerup', lpCancel); list0.addEventListener('pointercancel', lpCancel);
   list0.addEventListener('contextmenu', (e) => { if (e.target.closest('.row')) e.preventDefault(); });
 
-  let edId = null;
+  let edId = null, edOpenedAt = 0;
+  // 長押しで開いたとき、はなした指が書き直し画面のボタンに当たらないようにする
+  function lockEditor() {
+    const ed = $('#ed'); ed.classList.add('lock');
+    let done = false;
+    const unlock = () => { if (done) return; done = true; setTimeout(() => ed.classList.remove('lock'), 350); removeEventListener('pointerup', unlock, true); removeEventListener('pointercancel', unlock, true); };
+    addEventListener('pointerup', unlock, true); addEventListener('pointercancel', unlock, true);
+    setTimeout(unlock, 2500);
+  }
   function renderEdFav(on) { $('#edFav').classList.toggle('on', on); $('#edFav').innerHTML = STAR + (on ? 'お気に入り' : 'お気に入りにする'); }
   function openEditor(id) {
     const it = state.items.find((x) => x.id === id); if (!it) return;
-    edId = id; $('#edText').value = it.title; renderEdFav(!!it.fav);
+    edId = id; edOpenedAt = Date.now(); $('#edText').value = it.title; renderEdFav(!!it.fav);
     $('#edTrash').style.display = statusOf(it) === 'trash' ? 'none' : '';
     $('#ed').classList.add('show');
     const t = $('#edText'); t.focus({ preventScroll: true }); try { t.setSelectionRange(t.value.length, t.value.length); } catch (_) {}
@@ -506,7 +517,7 @@
   $('#edCancel').onclick = closeEditor;
   $('#edSave').onclick = saveEditor;
   $('#edFav').onclick = () => renderEdFav(!$('#edFav').classList.contains('on'));
-  $('#edTrash').onclick = async () => { const it = state.items.find((x) => x.id === edId); closeEditor(); if (it) moveTo(it, 'trash'); };
+  $('#edTrash').onclick = async () => { if ($('#ed').classList.contains('lock') || Date.now() - edOpenedAt < 600) return; const it = state.items.find((x) => x.id === edId); closeEditor(); if (it) moveTo(it, 'trash'); };
   watchIme($('#edText'));
   $('#edText').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); if (!imeBusy(e)) saveEditor(); } });
   // タップした位置が、タイトルの何文字目かを調べる
