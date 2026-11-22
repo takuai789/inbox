@@ -86,7 +86,7 @@
   .composer textarea::placeholder { color: var(--tertiary); }
   .composer .add { flex-shrink: 0; height: 28px; padding: 0 12px; border-radius: 14px; border: 0; background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; display: none; align-items: center; }
   .composer.has .add { display: flex; }
-  body.view-done .composer, body.view-trash .composer, body.view-done .seg, body.view-trash .seg { display: none; }
+  body.view-done .composer, body.view-trash .composer, body.view-cold .composer, body.view-done .seg, body.view-trash .seg, body.view-cold .seg { display: none; }
 
   /* 一覧 */
   .list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 16px calc(var(--kb, 0px) + var(--safe-bottom) + 90px); }
@@ -118,6 +118,15 @@
   .row .t { flex: 1; min-width: 0; font-size: 17px; line-height: 1.45; word-break: break-word; }
   .row.done .t { color: var(--secondary); }
   .row.trash .t { color: var(--secondary); }
+  /* COLD（凍結）：熱が冷めたアイデアの冷凍庫 */
+  .row.cold .inner { background: linear-gradient(90deg, rgba(120,170,220,.10), transparent 70%), var(--card); }
+  .row.cold .t { color: color-mix(in srgb, var(--ink) 70%, #4A7FB5); }
+  .row.cold .chk { border-color: #8DB4DA; color: #4A7FB5; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+  .row.cold .chk svg { display: none; }
+  .row.cold .chk::before { content: '❄'; }
+  .row.cold.armed .chk::before { content: ''; }
+  .tbtn.cold { color: #4A7FB5; }
+  .ed-acts button.coldb { color: #4A7FB5; }
   .row.fresh .inner { animation: fresh 1.2s ease; }
   @keyframes fresh { 0% { background: color-mix(in srgb, var(--accent) 14%, var(--card)); } 100% { background: var(--card); } }
   .row .when { font-size: 12px; color: var(--tertiary); white-space: nowrap; }
@@ -138,7 +147,7 @@
   .fab { position: fixed; right: max(18px, calc(50% - 302px)); bottom: calc(var(--safe-bottom) + 22px); width: 58px; height: 58px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); box-shadow: 0 8px 24px rgba(0,0,0,.22); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 20; transition: transform .2s, opacity .2s; }
   .fab:active { transform: scale(.92); }
   .fab svg { width: 28px; height: 28px; }
-  body.typing .fab, body.view-done .fab, body.view-trash .fab { opacity: 0; pointer-events: none; transform: scale(.6); }
+  body.typing .fab, body.view-done .fab, body.view-trash .fab, body.view-cold .fab { opacity: 0; pointer-events: none; transform: scale(.6); }
 
   /* トースト（上：キーボードに隠れない） */
   .toast { position: fixed; left: 50%; bottom: calc(var(--kb, 0px) + var(--safe-bottom) + 96px); transform: translateX(-50%) translateY(12px); opacity: 0; pointer-events: none; background: #1C2235; color: #fff; border-radius: 12px; padding: 10px 10px 10px 16px; font-size: 14px; display: flex; align-items: center; gap: 12px; transition: all .25s; z-index: 50; white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
@@ -235,7 +244,7 @@
   <div class="ed-nav"><button id="edCancel">やめる</button><h3>書き直す</h3><button class="b" id="edSave">保存</button></div>
   <div class="ed-body">
     <textarea id="edText" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
-    <div class="ed-acts"><button id="edFav"></button></div>
+    <div class="ed-acts"><button id="edFav"></button><button class="coldb" id="edCold"></button></div>
     <button class="ed-trash" id="edTrash">この項目をゴミ箱へ</button>
   </div>
 </div>
@@ -252,7 +261,7 @@
   </div>
   <input type="file" id="importFile" accept="application/json,.json" hidden />
   <p class="snote" id="bkNote"></p>
-  <p class="snote">右下の ＋ で追加。項目をダブルタップするか右にスワイプで完了、左にスワイプでゴミ箱。長押しすると書き直せます。何行かまとめて貼りつけると、1行ずつ別の項目になります。</p>
+  <p class="snote">右下の ＋ で追加。項目をダブルタップするか右にスワイプで完了。熱が冷めたものは長押しから ❄ COLD に凍結、左にスワイプでゴミ箱。長押しすると書き直せます。何行かまとめて貼りつけると、1行ずつ別の項目になります。</p>
   <div id="versionLabel"></div>
 </div>
 
@@ -278,17 +287,17 @@
   const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
 
   // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
-  const APP_VERSION = '1.10.0';
+  const APP_VERSION = '1.11.0';
 
   // ---------- 状態 ----------
-  // item: { id, title, fav, createdAt, updatedAt, status: undefined(=受け箱) | 'done' | 'trash', doneAt, trashedAt }
+  // item: { id, title, fav, createdAt, updatedAt, status: undefined(=受け箱) | 'done' | 'trash' | 'cold'(凍結), doneAt, trashedAt, coldAt }
   const state = { items: [], filter: 'all', view: 'inbox', editing: null, editCaret: null };
   let freshId = null;
   const FILTER_KEY = 'inbox.filter';
   try { if (localStorage.getItem(FILTER_KEY) === 'fav') state.filter = 'fav'; } catch (e) {}
   async function loadAll() { state.items = await getAll('items'); }
-  const statusOf = (i) => i.status === 'done' ? 'done' : i.status === 'trash' ? 'trash' : 'inbox';
-  const whenOf = (i, view) => view === 'done' ? (i.doneAt || i.updatedAt) : view === 'trash' ? (i.trashedAt || i.updatedAt) : i.createdAt;
+  const statusOf = (i) => i.status === 'done' ? 'done' : i.status === 'trash' ? 'trash' : i.status === 'cold' ? 'cold' : 'inbox';
+  const whenOf = (i, view) => view === 'done' ? (i.doneAt || i.updatedAt) : view === 'trash' ? (i.trashedAt || i.updatedAt) : view === 'cold' ? (i.coldAt || i.updatedAt) : i.createdAt;
 
   // ---------- 日付の区切り（今月／先月／今年／昨年／N年前） ----------
   function bucketOf(ts) {
@@ -309,15 +318,17 @@
   const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
   const UNDO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>';
   const ICON_DONE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.7 2.7L16.5 9"/></svg>';
+  const ICON_COLD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5v19M4 7l16 10M20 7 4 17M9.5 4 12 6.5 14.5 4M9.5 20 12 17.5 14.5 20M3 10.5l3.3-.9-.9-3.3M21 13.5l-3.3.9.9 3.3M3 13.5l3.3.9-.9 3.3M21 10.5l-3.3-.9.9-3.3"/></svg>';
   const ICON_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/></svg>';
   const ICON_MORE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg>';
   const SWIPE = {
     inbox: { right: '✓ 完了', left: 'ゴミ箱' },
     done: { right: '↩ 戻す', left: 'ゴミ箱' },
     trash: { right: '↩ 戻す', left: '完全に削除' },
+    cold: { right: '↩ 受け箱へ', left: 'ゴミ箱' },
   };
   function counts() {
-    const c = { inbox: 0, fav: 0, done: 0, trash: 0 };
+    const c = { inbox: 0, fav: 0, done: 0, trash: 0, cold: 0 };
     for (const i of state.items) { const s = statusOf(i); c[s]++; if (s === 'inbox' && i.fav) c.fav++; }
     return c;
   }
@@ -326,15 +337,16 @@
     if (state.view === 'inbox') {
       top.className = 'top';
       top.innerHTML = '<div class="ttl"><h1>INBOX</h1><span class="count">' + (c.inbox ? c.inbox + '件' + (c.fav ? ' ・ ★' + c.fav : '') : '') + '</span></div>'
-        + '<div class="tools"><button class="tbtn" data-go="done" aria-label="完了">' + ICON_DONE + (c.done ? '<span>' + c.done + '</span>' : '') + '</button>'
+        + '<div class="tools"><button class="tbtn cold" data-go="cold" aria-label="COLD（凍結）">' + ICON_COLD + (c.cold ? '<span>' + c.cold + '</span>' : '') + '</button>'
+        + '<button class="tbtn" data-go="done" aria-label="完了">' + ICON_DONE + (c.done ? '<span>' + c.done + '</span>' : '') + '</button>'
         + '<button class="tbtn" data-go="trash" aria-label="ゴミ箱">' + ICON_TRASH + (c.trash ? '<span>' + c.trash + '</span>' : '') + '</button>'
         + '<button class="tbtn" id="gearBtn" aria-label="設定">' + ICON_MORE + '</button></div>';
     } else {
       const isDone = state.view === 'done';
       top.className = 'top sub';
       top.innerHTML = '<div class="navrow"><button class="back" data-go="inbox"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg>INBOX</button>'
-        + (isDone ? '' : '<button class="emptyTrash" id="emptyTrash"' + (c.trash ? '' : ' disabled') + '>空にする</button>') + '</div>'
-        + '<div class="ttl"><h1>' + (isDone ? '完了' : 'ゴミ箱') + '</h1><span class="count">' + (c[state.view] ? c[state.view] + '件' : '') + '</span></div>';
+        + (state.view === 'trash' ? '<button class="emptyTrash" id="emptyTrash"' + (c.trash ? '' : ' disabled') + '>空にする</button>' : '') + '</div>'
+        + '<div class="ttl"><h1>' + (isDone ? '完了' : state.view === 'cold' ? 'COLD' : 'ゴミ箱') + '</h1><span class="count">' + (c[state.view] ? c[state.view] + '件' : '') + '</span></div>';
     }
   }
   function render() {
@@ -347,10 +359,12 @@
     list.sort((a, b) => whenOf(b, v) - whenOf(a, v));
     const box = $('#list');
     let html = v === 'done' ? '<p class="vhint">完了したものです。○ を押すか右にスワイプで受け箱に戻せます。</p>'
-      : v === 'trash' ? '<p class="vhint">右にスワイプか ↩ で受け箱に戻せます。左にスワイプで完全に削除。</p>' : '';
+      : v === 'trash' ? '<p class="vhint">右にスワイプか ↩ で受け箱に戻せます。左にスワイプで完全に削除。</p>'
+      : v === 'cold' ? '<p class="vhint">❄ ゴミにするほどではないけど、熱が冷めたアイデアの冷凍庫です。また気になったら、ダブルタップか右にスワイプで受け箱に戻せます。</p>' : '';
     if (!list.length) {
       box.innerHTML = html + (v === 'done' ? '<div class="empty"><b>✓</b>完了したものは まだありません。<br>受け箱で 右にスワイプすると ここに入ります。</div>'
         : v === 'trash' ? '<div class="empty"><b>🗑</b>ゴミ箱は からっぽです。</div>'
+        : v === 'cold' ? '<div class="empty"><b>❄</b>COLD は からっぽです。<br>受け箱の項目を長押しして「COLD に入れる」で、ここに凍結できます。</div>'
         : state.filter === 'fav' ? '<div class="empty"><b>☆</b>お気に入りはまだありません。<br>行の右の ☆ をタップすると入ります。</div>'
         : '<div class="empty"><b>📥</b>なんでも、ここに放りこもう。<br>右下の ＋ から書いて、改行で追加。<small>ダブルタップで完了・長押しで書き直し・左にスワイプでゴミ箱</small></div>');
       return;
@@ -362,9 +376,9 @@
       if (b !== cur) { if (cur !== null) html += '</div>'; html += '<div class="day">' + b + '</div><div class="group">'; cur = b; }
       const right = v === 'inbox'
         ? '<button class="star" aria-label="お気に入り">' + STAR + '</button>'
-        : v === 'done' ? '<span class="when">' + md(whenOf(it, v)) + '</span>'
+        : v === 'done' || v === 'cold' ? '<span class="when">' + md(whenOf(it, v)) + '</span>'
         : '<span class="when">' + md(whenOf(it, v)) + '</span><button class="undo" aria-label="受け箱に戻す">' + UNDO + '</button>';
-      const left = v === 'trash' ? '' : '<button class="chk" aria-label="' + (v === 'done' ? '受け箱に戻す' : '完了') + '">' + CHECK + '</button>';
+      const left = v === 'trash' ? '' : '<button class="chk" aria-label="' + (v === 'done' || v === 'cold' ? '受け箱に戻す' : '完了') + '">' + CHECK + '</button>';
       html += '<div class="row' + (it.id === freshId ? ' fresh' : '') + (it.fav ? ' fav' : '') + (v !== 'inbox' ? ' ' + v : '') + '" data-id="' + it.id + '">'
         + '<div class="bg"><span class="l">' + sw.right + '</span><span class="r">' + sw.left + '</span></div><div class="inner">' + left
         + (state.editing === it.id ? '<textarea class="edit" rows="1" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false">' + esc(it.title) + '</textarea>' : '<div class="t">' + esc(it.title) + '</div>')
@@ -449,12 +463,12 @@
   }
 
   // ---------- 状態を変える（完了・ゴミ箱・戻す・完全に削除） ----------
-  const LABEL = { done: '完了にしました', trash: 'ゴミ箱に入れました', inbox: '受け箱に戻しました' };
+  const LABEL = { done: '完了にしました', trash: 'ゴミ箱に入れました', inbox: '受け箱に戻しました', cold: '❄ COLD に入れました' };
   async function moveTo(it, to) {
-    const before = { status: it.status, doneAt: it.doneAt, trashedAt: it.trashedAt, updatedAt: it.updatedAt };
+    const before = { status: it.status, doneAt: it.doneAt, trashedAt: it.trashedAt, coldAt: it.coldAt, updatedAt: it.updatedAt };
     const now = Date.now();
     if (to === 'inbox') { delete it.status; }
-    else { it.status = to; if (to === 'done') it.doneAt = now; if (to === 'trash') it.trashedAt = now; }
+    else { it.status = to; if (to === 'done') it.doneAt = now; if (to === 'trash') it.trashedAt = now; if (to === 'cold') it.coldAt = now; }
     it.updatedAt = now;
     await put('items', it); render();
     toast(LABEL[to], '取り消す', async () => { Object.assign(it, before); if (!before.status) delete it.status; it.updatedAt = Date.now(); await put('items', it); render(); });
@@ -475,6 +489,7 @@
     if (longFired) { longFired = false; return; }
     if (!e.target.closest('.star') && state.view !== 'trash') {
       if (state.view === 'done') { moveTo(it, 'inbox'); return; }
+      const toWhere = state.view === 'cold' ? 'inbox' : 'done';
       // 完了はダブルタップ（うっかり押しを防ぐ）。1回目は「もう一度で完了」の印だけ
       if (armedId !== it.id) {
         disarm(); armedId = it.id; row.classList.add('armed');
@@ -482,7 +497,7 @@
         try { const n = +(localStorage.getItem('inbox.chkHint') || 0); if (n < 3) { localStorage.setItem('inbox.chkHint', String(n + 1)); toast('もう一度タップで完了'); } } catch (_) {}
         return;
       }
-      disarm(); row.classList.add('checking'); setTimeout(() => moveTo(it, 'done'), 380); return;
+      disarm(); if (toWhere === 'done') row.classList.add('checking'); setTimeout(() => moveTo(it, toWhere), toWhere === 'done' ? 380 : 120); return;
     }
     if (e.target.closest('.star')) {
       it.fav = !it.fav; it.updatedAt = Date.now(); await put('items', it);
@@ -525,6 +540,9 @@
     const it = state.items.find((x) => x.id === id); if (!it) return;
     edId = id; edOpenedAt = Date.now(); $('#edText').value = it.title; renderEdFav(!!it.fav);
     $('#edTrash').style.display = statusOf(it) === 'trash' ? 'none' : '';
+    const st = statusOf(it);
+    $('#edCold').style.display = st === 'trash' || st === 'done' ? 'none' : '';
+    $('#edCold').innerHTML = st === 'cold' ? '↩ 受け箱に戻す' : '❄ COLD に入れる';
     $('#ed').classList.add('show');
     const t = $('#edText'); t.focus({ preventScroll: true }); try { t.setSelectionRange(t.value.length, t.value.length); } catch (_) {}
   }
@@ -540,6 +558,13 @@
   $('#edCancel').onclick = closeEditor;
   $('#edSave').onclick = saveEditor;
   $('#edFav').onclick = () => renderEdFav(!$('#edFav').classList.contains('on'));
+  $('#edCold').onclick = async () => {
+    if ($('#ed').classList.contains('lock') || Date.now() - edOpenedAt < 600) return;
+    const it = state.items.find((x) => x.id === edId); if (!it) return;
+    const v = $('#edText').value.replace(/\s*\n\s*/g, ' ').trim(); if (v && v !== it.title) { it.title = v; it.updatedAt = Date.now(); }
+    it.fav = $('#edFav').classList.contains('on');
+    closeEditor(); moveTo(it, statusOf(it) === 'cold' ? 'inbox' : 'cold');
+  };
   $('#edTrash').onclick = async () => { if ($('#ed').classList.contains('lock') || Date.now() - edOpenedAt < 600) return; const it = state.items.find((x) => x.id === edId); closeEditor(); if (it) moveTo(it, 'trash'); };
   watchIme($('#edText'));
   $('#edText').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); if (!imeBusy(e)) saveEditor(); } });
