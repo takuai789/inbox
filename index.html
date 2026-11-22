@@ -261,7 +261,7 @@
   </div>
   <input type="file" id="importFile" accept="application/json,.json" hidden />
   <p class="snote" id="bkNote"></p>
-  <p class="snote">右下の ＋ で追加。項目をダブルタップするか右にスワイプで完了。熱が冷めたものは長押しから ❄ COLD に凍結、左にスワイプでゴミ箱。長押しすると書き直せます。何行かまとめて貼りつけると、1行ずつ別の項目になります。</p>
+  <p class="snote">右下の ＋ で追加。項目をダブルタップするか右にスワイプで完了。熱が冷めたものは長押しから ❄ COLD に凍結（COLDでダブルタップすると解凍）、左にスワイプでゴミ箱。長押しすると書き直せます。何行かまとめて貼りつけると、1行ずつ別の項目になります。</p>
   <div id="versionLabel"></div>
 </div>
 
@@ -287,7 +287,7 @@
   const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
 
   // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
-  const APP_VERSION = '1.11.0';
+  const APP_VERSION = '1.11.1';
 
   // ---------- 状態 ----------
   // item: { id, title, fav, createdAt, updatedAt, status: undefined(=受け箱) | 'done' | 'trash' | 'cold'(凍結), doneAt, trashedAt, coldAt }
@@ -325,7 +325,7 @@
     inbox: { right: '✓ 完了', left: 'ゴミ箱' },
     done: { right: '↩ 戻す', left: 'ゴミ箱' },
     trash: { right: '↩ 戻す', left: '完全に削除' },
-    cold: { right: '↩ 受け箱へ', left: 'ゴミ箱' },
+    cold: { right: '♨ 解凍', left: 'ゴミ箱' },
   };
   function counts() {
     const c = { inbox: 0, fav: 0, done: 0, trash: 0, cold: 0 };
@@ -360,7 +360,7 @@
     const box = $('#list');
     let html = v === 'done' ? '<p class="vhint">完了したものです。○ を押すか右にスワイプで受け箱に戻せます。</p>'
       : v === 'trash' ? '<p class="vhint">右にスワイプか ↩ で受け箱に戻せます。左にスワイプで完全に削除。</p>'
-      : v === 'cold' ? '<p class="vhint">❄ ゴミにするほどではないけど、熱が冷めたアイデアの冷凍庫です。また気になったら、ダブルタップか右にスワイプで受け箱に戻せます。</p>' : '';
+      : v === 'cold' ? '<p class="vhint">❄ ゴミにするほどではないけど、熱が冷めたアイデアの冷凍庫です。また気になったら、ダブルタップか右にスワイプで解凍（受け箱に戻す）できます。</p>' : '';
     if (!list.length) {
       box.innerHTML = html + (v === 'done' ? '<div class="empty"><b>✓</b>完了したものは まだありません。<br>受け箱で 右にスワイプすると ここに入ります。</div>'
         : v === 'trash' ? '<div class="empty"><b>🗑</b>ゴミ箱は からっぽです。</div>'
@@ -378,7 +378,7 @@
         ? '<button class="star" aria-label="お気に入り">' + STAR + '</button>'
         : v === 'done' || v === 'cold' ? '<span class="when">' + md(whenOf(it, v)) + '</span>'
         : '<span class="when">' + md(whenOf(it, v)) + '</span><button class="undo" aria-label="受け箱に戻す">' + UNDO + '</button>';
-      const left = v === 'trash' ? '' : '<button class="chk" aria-label="' + (v === 'done' || v === 'cold' ? '受け箱に戻す' : '完了') + '">' + CHECK + '</button>';
+      const left = v === 'trash' ? '' : '<button class="chk" aria-label="' + (v === 'cold' ? '解凍' : v === 'done' ? '受け箱に戻す' : '完了') + '">' + CHECK + '</button>';
       html += '<div class="row' + (it.id === freshId ? ' fresh' : '') + (it.fav ? ' fav' : '') + (v !== 'inbox' ? ' ' + v : '') + '" data-id="' + it.id + '">'
         + '<div class="bg"><span class="l">' + sw.right + '</span><span class="r">' + sw.left + '</span></div><div class="inner">' + left
         + (state.editing === it.id ? '<textarea class="edit" rows="1" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false">' + esc(it.title) + '</textarea>' : '<div class="t">' + esc(it.title) + '</div>')
@@ -471,7 +471,7 @@
     else { it.status = to; if (to === 'done') it.doneAt = now; if (to === 'trash') it.trashedAt = now; if (to === 'cold') it.coldAt = now; }
     it.updatedAt = now;
     await put('items', it); render();
-    toast(LABEL[to], '取り消す', async () => { Object.assign(it, before); if (!before.status) delete it.status; it.updatedAt = Date.now(); await put('items', it); render(); });
+    toast(before.status === 'cold' && to === 'inbox' ? '♨ 解凍しました' : LABEL[to], '取り消す', async () => { Object.assign(it, before); if (!before.status) delete it.status; it.updatedAt = Date.now(); await put('items', it); render(); });
   }
   async function purge(it) {
     state.items = state.items.filter((x) => x.id !== it.id); await del('items', it.id); render();
@@ -542,7 +542,7 @@
     $('#edTrash').style.display = statusOf(it) === 'trash' ? 'none' : '';
     const st = statusOf(it);
     $('#edCold').style.display = st === 'trash' || st === 'done' ? 'none' : '';
-    $('#edCold').innerHTML = st === 'cold' ? '↩ 受け箱に戻す' : '❄ COLD に入れる';
+    $('#edCold').innerHTML = st === 'cold' ? '♨ 解凍する' : '❄ COLD に入れる';
     $('#ed').classList.add('show');
     const t = $('#edText'); t.focus({ preventScroll: true }); try { t.setSelectionRange(t.value.length, t.value.length); } catch (_) {}
   }
