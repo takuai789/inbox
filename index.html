@@ -129,6 +129,9 @@
   .row .t { flex: 1; min-width: 0; font-size: 17px; line-height: 1.45; word-break: break-word; }
   .row.done .t { color: var(--secondary); }
   .row.trash .t { color: var(--secondary); }
+  /* 完了してもすぐ消さず、翌日の終わりまで受け箱に残す */
+  .row.linger .t { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--secondary) 70%, transparent); }
+  .row.linger .star { opacity: .45; }
   /* COLD（凍結）：熱が冷めたアイデアの冷凍庫 */
   .row.cold .inner { background: linear-gradient(90deg, rgba(120,170,220,.10), transparent 70%), var(--card); }
   .row.cold .t { color: color-mix(in srgb, var(--ink) 70%, #4A7FB5); }
@@ -298,7 +301,7 @@
   const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
 
   // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
-  const APP_VERSION = '1.13.1';
+  const APP_VERSION = '1.14.0';
 
   // ---------- 状態 ----------
   // item: { id, title, fav, createdAt, updatedAt, status: undefined(=受け箱) | 'done' | 'trash' | 'cold'(凍結), doneAt, trashedAt, coldAt }
@@ -360,12 +363,18 @@
         + '<div class="ttl"><h1>' + (isDone ? '完了' : state.view === 'cold' ? 'COLD' : 'ゴミ箱') + '</h1><span class="count">' + (c[state.view] ? c[state.view] + '件' : '') + '</span></div>';
     }
   }
+  // 完了した日の「翌日の終わり」まで受け箱に表示しておく（＝きのう・きょう完了したもの）
+  function lingers(i) {
+    if (statusOf(i) !== 'done') return false;
+    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - 1);
+    return (i.doneAt || 0) >= d.getTime();
+  }
   function render() {
     document.body.className = 'view-' + state.view + (document.body.classList.contains('typing') ? ' typing' : '');
     renderTop();
     document.querySelectorAll('#seg button').forEach((b) => b.classList.toggle('on', b.dataset.f === state.filter));
     const v = state.view;
-    let list = state.items.filter((i) => statusOf(i) === v);
+    let list = state.items.filter((i) => statusOf(i) === v || (v === 'inbox' && lingers(i)));
     if (v === 'inbox' && state.filter === 'fav') list = list.filter((i) => i.fav);
     list.sort((a, b) => state.sort === 'old' ? whenOf(a, v) - whenOf(b, v) : whenOf(b, v) - whenOf(a, v));
     const box = $('#list');
@@ -395,7 +404,7 @@
         : v === 'done' || v === 'cold' ? '<span class="when">' + md(whenOf(it, v)) + '</span>'
         : '<span class="when">' + md(whenOf(it, v)) + '</span><button class="undo" aria-label="受け箱に戻す">' + UNDO + '</button>';
       const left = v === 'trash' ? '' : '<button class="chk" aria-label="' + (v === 'cold' ? '解凍' : v === 'done' ? '受け箱に戻す' : '完了') + '">' + CHECK + '</button>';
-      html += '<div class="row' + (it.id === freshId ? ' fresh' : '') + (it.fav ? ' fav' : '') + (v !== 'inbox' ? ' ' + v : '') + '" data-id="' + it.id + '">'
+      html += '<div class="row' + (it.id === freshId ? ' fresh' : '') + (it.fav ? ' fav' : '') + (v !== 'inbox' ? ' ' + v : statusOf(it) === 'done' ? ' done linger' : '') + '" data-id="' + it.id + '">'
         + '<div class="bg"><span class="l">' + sw.right + '</span><span class="r">' + sw.left + '</span></div><div class="inner">' + left
         + (state.editing === it.id ? '<textarea class="edit" rows="1" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false">' + esc(it.title) + '</textarea>' : '<div class="t">' + esc(it.title) + '</div>')
         + right + '</div></div>';
@@ -487,7 +496,7 @@
   }
 
   // ---------- 状態を変える（完了・ゴミ箱・戻す・完全に削除） ----------
-  const LABEL = { done: '完了にしました', trash: 'ゴミ箱に入れました', inbox: '受け箱に戻しました', cold: '❄ COLD に入れました' };
+  const LABEL = { done: '完了にしました（明日いっぱいは表示されます）', trash: 'ゴミ箱に入れました', inbox: '受け箱に戻しました', cold: '❄ COLD に入れました' };
   async function moveTo(it, to) {
     const before = { status: it.status, doneAt: it.doneAt, trashedAt: it.trashedAt, coldAt: it.coldAt, updatedAt: it.updatedAt };
     const now = Date.now();
@@ -513,12 +522,12 @@
     if (longFired) { longFired = false; return; }
     if (!e.target.closest('.star') && state.view !== 'trash') {
       if (state.view === 'done') { moveTo(it, 'inbox'); return; }
-      const toWhere = state.view === 'cold' ? 'inbox' : 'done';
+      const toWhere = state.view === 'cold' || statusOf(it) === 'done' ? 'inbox' : 'done';
       // 完了はダブルタップ（うっかり押しを防ぐ）。1回目は「もう一度で完了」の印だけ
       if (armedId !== it.id) {
         disarm(); armedId = it.id; row.classList.add('armed');
         armedT = setTimeout(disarm, 1400);
-        try { const n = +(localStorage.getItem('inbox.chkHint') || 0); if (n < 3) { localStorage.setItem('inbox.chkHint', String(n + 1)); toast('もう一度タップで完了'); } } catch (_) {}
+        try { const n = +(localStorage.getItem('inbox.chkHint') || 0); if (n < 3) { localStorage.setItem('inbox.chkHint', String(n + 1)); toast(toWhere === 'done' ? 'もう一度タップで完了' : 'もう一度タップで元に戻す'); } } catch (_) {}
         return;
       }
       disarm(); if (toWhere === 'done') row.classList.add('checking'); setTimeout(() => moveTo(it, toWhere), toWhere === 'done' ? 380 : 120); return;
@@ -662,7 +671,7 @@
         inn.style.transform = 'translateX(' + (dx > 0 ? 110 : -110) + '%)';
         const v = state.view;
         setTimeout(() => {
-          if (dx > 0) moveTo(it, v === 'inbox' ? 'done' : 'inbox');
+          if (dx > 0) moveTo(it, v === 'inbox' && statusOf(it) !== 'done' ? 'done' : 'inbox');
           else if (v === 'trash') purge(it);
           else moveTo(it, 'trash');
         }, 170);
@@ -788,6 +797,8 @@
     setupViewportTracking();
     applyTheme(document.documentElement.dataset.theme || 'navy');
     await openDB(); await loadAll(); render();
+    // 日付が変わったら、きのうより前に完了したものを受け箱から消す
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !$('#ed').classList.contains('show')) render(); });
     // iPhone/iPad では自動でフォーカスしない（キーボードが出ないまま「フォーカス済み」になり、タップしても入力できなくなるため）
   })();
 
