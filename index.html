@@ -192,6 +192,7 @@
   .ed-nav button.b { font-weight: 700; }
   .ed-body { padding: 6px 16px 16px; overflow-y: auto; }
   #edText { width: 100%; min-height: 160px; border: 0; border-radius: 14px; background: var(--card); color: var(--ink); font: inherit; font-size: 18px; line-height: 1.6; padding: 14px 16px; outline: none; resize: none; -webkit-appearance: none; appearance: none; }
+  .ed-meta { font-size: 13px; color: var(--secondary); line-height: 1.8; margin: 10px 4px 0; font-variant-numeric: tabular-nums; }
   .ed-acts { display: flex; gap: 10px; margin-top: 14px; }
   .ed-acts button { flex: 1; border: 0; border-radius: 12px; background: var(--card); font: inherit; font-size: 15px; font-weight: 600; color: var(--ink); padding: 13px 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
   .ed-acts button svg { width: 18px; height: 18px; }
@@ -258,6 +259,7 @@
   <div class="ed-nav"><button id="edCancel">やめる</button><h3>書き直す</h3><button class="b" id="edSave">保存</button></div>
   <div class="ed-body">
     <textarea id="edText" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+    <div class="ed-meta" id="edMeta"></div>
     <div class="ed-acts"><button id="edFav"></button><button class="coldb" id="edCold"></button></div>
     <button class="ed-trash" id="edTrash">この項目をゴミ箱へ</button>
   </div>
@@ -301,7 +303,7 @@
   const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
 
   // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
-  const APP_VERSION = '1.14.0';
+  const APP_VERSION = '1.14.1';
 
   // ---------- 状態 ----------
   // item: { id, title, fav, createdAt, updatedAt, status: undefined(=受け箱) | 'done' | 'trash' | 'cold'(凍結), doneAt, trashedAt, coldAt }
@@ -569,9 +571,17 @@
     setTimeout(unlock, 2500);
   }
   function renderEdFav(on) { $('#edFav').classList.toggle('on', on); $('#edFav').innerHTML = STAR + (on ? 'お気に入り' : 'お気に入りにする'); }
+  const fullDT = (t) => { if (!t) return ''; const d = new Date(t); return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() + '（' + '日月火水木金土'[d.getDay()] + '）' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0'); };
+  function metaHTML(it) {
+    const st = statusOf(it), rows = ['登録　' + fullDT(it.createdAt)];
+    if (st === 'done' && it.doneAt) rows.push('完了　' + fullDT(it.doneAt));
+    if (st === 'cold' && it.coldAt) rows.push('凍結　' + fullDT(it.coldAt));
+    if (st === 'trash' && it.trashedAt) rows.push('ゴミ箱へ　' + fullDT(it.trashedAt));
+    return rows.join('<br>');
+  }
   function openEditor(id) {
     const it = state.items.find((x) => x.id === id); if (!it) return;
-    edId = id; edOpenedAt = Date.now(); $('#edText').value = it.title; renderEdFav(!!it.fav);
+    edId = id; edOpenedAt = Date.now(); $('#edText').value = it.title; renderEdFav(!!it.fav); $('#edMeta').innerHTML = metaHTML(it);
     $('#edTrash').style.display = statusOf(it) === 'trash' ? 'none' : '';
     const st = statusOf(it);
     $('#edCold').style.display = st === 'trash' || st === 'done' ? 'none' : '';
