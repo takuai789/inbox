@@ -1,11 +1,11 @@
 // INBOX Service Worker
 // 自動アップデート対応版。
-// - HTML/JS本体（index.html）はネットワーク優先で常に最新を取りに行く
-// - 取得失敗時（オフライン）はキャッシュにフォールバック
+// - HTML/JS本体（index.html）もキャッシュ優先で、開いた瞬間に表示する（電波待ちのタイムラグをなくす）
+//   新しい版は「新SWのインストール時」に取りに行き、更新バナー→タップで切りかわる
 // - アイコン等の静的アセットはキャッシュ優先（速さ重視）
 // CACHE の数字を上げるたびに「新しいバージョン」として検知される。
 // リリース時は index.html の APP_VERSION と必ずセットで上げること。
-const CACHE = 'inbox-v1-13-0';
+const CACHE = 'inbox-v1-13-1';
 const ASSETS = [
   './',
   './index.html',
@@ -16,7 +16,8 @@ const ASSETS = [
 
 self.addEventListener('install', (e) => {
   // skipWaiting はしない。新SWは待機し、ユーザーが「更新」を押したら有効化する。
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
+  // HTTPキャッシュの古い版をつかまないよう、必ずサーバーから取り直す
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' })))));
 });
 
 self.addEventListener('activate', (e) => {
@@ -49,17 +50,17 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // HTMLナビゲーション（index.html / ルート）: ネットワーク優先で最新を取得
+  // HTMLナビゲーション（index.html / ルート）: キャッシュ優先ですぐ出す。無ければ取りに行く
   const isHTML = req.mode === 'navigate'
     || url.pathname.endsWith('/')
     || url.pathname.endsWith('index.html');
   if (isHTML) {
     e.respondWith(
-      fetch(req).then((res) => {
+      caches.match('./index.html').then((cached) => cached || fetch(req).then((res) => {
         const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy));
+        caches.open(CACHE).then((c) => c.put('./index.html', copy));
         return res;
-      }).catch(() => caches.match(req).then((c) => c || caches.match('./index.html')))
+      }))
     );
     return;
   }

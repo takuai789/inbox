@@ -298,7 +298,7 @@
   const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
 
   // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
-  const APP_VERSION = '1.13.0';
+  const APP_VERSION = '1.13.1';
 
   // ---------- 状態 ----------
   // item: { id, title, fav, createdAt, updatedAt, status: undefined(=受け箱) | 'done' | 'trash' | 'cold'(凍結), doneAt, trashedAt, coldAt }
