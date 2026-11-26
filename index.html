@@ -77,6 +77,33 @@
   .seg button { border: 0; background: none; font-family: inherit; font-size: 13.5px; font-weight: 500; color: var(--ink); padding: 6px 0; border-radius: 7px; cursor: pointer; }
   .seg button.on { background: var(--card); font-weight: 600; box-shadow: 0 3px 8px rgba(0,0,0,.08), 0 1px 1px rgba(0,0,0,.04); }
   .seg button .st { color: var(--amber-deep); }
+  /* 棚卸しモード：古い順に1枚ずつ仕分ける */
+  .tana { position: fixed; inset: 0; z-index: 72; background: var(--bg); display: flex; flex-direction: column; padding: var(--safe-top) 0 calc(var(--safe-bottom) + 12px); transform: translateY(100%); transition: transform .32s cubic-bezier(.32,.72,0,1); }
+  .tana.show { transform: none; }
+  .tana-nav { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 4px; }
+  .tana-nav h3 { font-size: 17px; }
+  .tana-nav button { border: 0; background: none; font: inherit; font-size: 16px; color: var(--accent); padding: 8px 10px; cursor: pointer; min-width: 64px; }
+  .tana-nav button:disabled { opacity: .3; }
+  .tana-bar { height: 4px; margin: 4px 16px 0; border-radius: 2px; background: var(--fill, rgba(120,120,128,.14)); overflow: hidden; }
+  .tana-bar i { display: block; height: 100%; background: var(--accent); transition: width .25s; }
+  .tana-body { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 16px; min-height: 0; }
+  .tana-card { background: var(--card); border-radius: 22px; padding: 26px 22px; box-shadow: 0 10px 30px rgba(0,0,0,.08); transition: transform .22s, opacity .22s; }
+  .tana-card.out { transform: translateY(-14px) scale(.97); opacity: 0; }
+  .tana-card .tt { font-size: 22px; font-weight: 700; line-height: 1.5; word-break: break-word; max-height: 40vh; overflow-y: auto; }
+  .tana-card .tm { font-size: 13px; color: var(--secondary); margin-top: 14px; }
+  .tana-card .tm b { color: var(--ink); font-weight: 700; }
+  .tana-q { text-align: center; font-size: 13px; color: var(--secondary); margin: 18px 0 10px; }
+  .tana-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px; }
+  .tana-acts button { border: 0; border-radius: 16px; padding: 16px 8px; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; background: var(--card); color: var(--ink); box-shadow: 0 0 0 1px var(--sep, rgba(0,0,0,.08)); }
+  .tana-acts .keep { background: var(--accent); color: var(--accent-ink, #fff); box-shadow: none; }
+  .tana-acts .cold { color: #4A7FB5; }
+  .tana-acts .trash { color: var(--red, #E5484D); }
+  .tana-end { text-align: center; }
+  .tana-end b { display: block; font-size: 44px; margin-bottom: 8px; }
+  .tana-end h4 { font-size: 20px; margin-bottom: 14px; }
+  .tana-end p { font-size: 14px; color: var(--secondary); line-height: 2; }
+  .tana-end button { margin-top: 22px; border: 0; border-radius: 14px; background: var(--accent); color: var(--accent-ink, #fff); font: inherit; font-size: 16px; font-weight: 700; padding: 14px 40px; cursor: pointer; }
+  #tanaBtn { border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--accent); padding: 4px 4px; cursor: pointer; }
   /* バックアップのお知らせ（2日に1回） */
   .bknudge { display: flex; align-items: center; gap: 10px; margin: 0 16px 14px; padding: 11px 8px 11px 14px; background: var(--card); border-radius: 14px; box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--accent) 35%, transparent); }
   .bknudge .bi { font-size: 20px; flex: none; }
@@ -85,7 +112,7 @@
   .bknudge .bgo { flex: none; border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: inherit; font-size: 13px; font-weight: 700; padding: 8px 13px; cursor: pointer; }
   .bknudge .bx { flex: none; border: 0; background: none; color: var(--secondary); font-size: 15px; padding: 6px; cursor: pointer; }
   /* 並び順（新しい順／古い順） */
-  .sortbar { display: flex; justify-content: flex-end; margin: -4px 16px -18px; position: relative; z-index: 1; }
+  .sortbar { display: flex; justify-content: space-between; margin: -4px 16px -18px; position: relative; z-index: 1; }
   .sortbar button { border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--secondary); padding: 4px 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; }
   .sortbar svg { width: 14px; height: 14px; }
 
@@ -240,6 +267,12 @@
   </div>
   <div class="list" id="list"></div>
 </div>
+<div class="tana" id="tana">
+  <div class="tana-nav"><button id="tanaBack" disabled>↩ ひとつ戻る</button><h3 id="tanaTitle">棚卸し</h3><button id="tanaClose">終わる</button></div>
+  <div class="tana-bar"><i id="tanaProg"></i></div>
+  <div class="tana-body" id="tanaBody"></div>
+</div>
+
 <div class="addBg" id="addBg"></div>
 <div class="addPanel" id="addPanel">
   <div class="ed-nav"><button id="addClose">閉じる</button><h3>追加</h3><span style="width:64px"></span></div>
@@ -277,7 +310,7 @@
   </div>
   <input type="file" id="importFile" accept="application/json,.json" hidden />
   <p class="snote" id="bkNote"></p>
-  <p class="snote">右下の ＋ で追加。項目をダブルタップするか右にスワイプで完了。熱が冷めたものは長押しから ❄ COLD に凍結（COLDでダブルタップすると解凍）、左にスワイプでゴミ箱。長押しすると書き直せます。何行かまとめて貼りつけると、1行ずつ別の項目になります。</p>
+  <p class="snote">右下の ＋ で追加。たまってきたら「🗂 棚卸し」で古い順に1件ずつ見直せます。項目をダブルタップするか右にスワイプで完了。熱が冷めたものは長押しから ❄ COLD に凍結（COLDでダブルタップすると解凍）、左にスワイプでゴミ箱。長押しすると書き直せます。何行かまとめて貼りつけると、1行ずつ別の項目になります。</p>
   <div id="versionLabel"></div>
 </div>
 
@@ -303,7 +336,7 @@
   const del = (s, id) => new Promise((res, rej) => { const r = tx(s, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
 
   // ---------- バージョン（sw.js の CACHE とセットで上げる） ----------
-  const APP_VERSION = '1.14.1';
+  const APP_VERSION = '1.15.0';
 
   // ---------- 状態 ----------
   // item: { id, title, fav, createdAt, updatedAt, status: undefined(=受け箱) | 'done' | 'trash' | 'cold'(凍結), doneAt, trashedAt, coldAt }
@@ -395,7 +428,7 @@
       const t = bkLast(), d = t ? Math.floor((Date.now() - t) / 86400000) : 0;
       html += '<div class="bknudge"><span class="bi">💾</span><span class="bt">' + (t ? '前回のバックアップから' + d + '日たちました' : 'まだバックアップしていません') + '<small>2日に1回、書き出しておくと安心です</small></span><button class="bgo" id="bkGo">書き出す</button><button class="bx" id="bkLater" aria-label="今日はあとで">✕</button></div>';
     }
-    if (list.length > 1) html += '<div class="sortbar"><button id="sortBtn" aria-label="並び順を切りかえ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3.5 16.5 7 20l3.5-3.5M17 20V4M13.5 7.5 17 4l3.5 3.5"/></svg>' + (state.sort === 'old' ? '古い順' : '新しい順') + '</button></div>';
+    if (list.length > 1) html += '<div class="sortbar">' + (v === 'inbox' ? '<button id="tanaBtn">🗂 棚卸し</button>' : '<span></span>') + '<button id="sortBtn" aria-label="並び順を切りかえ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3.5 16.5 7 20l3.5-3.5M17 20V4M13.5 7.5 17 4l3.5 3.5"/></svg>' + (state.sort === 'old' ? '古い順' : '新しい順') + '</button></div>';
     let cur = null;
     const sw = SWIPE[v];
     for (const it of list) {
@@ -425,6 +458,7 @@
     }
   }
   $('#list').addEventListener('click', (e) => {
+    if (e.target.closest('#tanaBtn')) { e.stopPropagation(); openTana(); return; }
     if (e.target.closest('#bkGo')) { e.stopPropagation(); doExport(); return; }
     if (e.target.closest('#bkLater')) { e.stopPropagation(); try { localStorage.setItem(BK_SNOOZE, new Date().toDateString()); } catch (_) {} render(); return; }
     if (!e.target.closest('#sortBtn')) return;
@@ -512,6 +546,60 @@
     state.items = state.items.filter((x) => x.id !== it.id); await del('items', it.id); render();
     toast('完全に削除しました', '取り消す', async () => { await put('items', it); await loadAll(); render(); });
   }
+
+  // ---------- 棚卸し（古い順に1枚ずつ：残す／完了／COLD／ゴミ箱） ----------
+  const TANA_KEY = 'inbox.lastTana';
+  let tana = null; // { ids, i, hist: [{id, before, act}], n: {keep, done, cold, trash} }
+  const daysAgo = (t) => Math.max(0, Math.floor((Date.now() - t) / 86400000));
+  function openTana() {
+    const ids = state.items.filter((i) => statusOf(i) === 'inbox').sort((a, b) => a.createdAt - b.createdAt).map((i) => i.id);
+    if (!ids.length) { toast('受け箱は からっぽです'); return; }
+    tana = { ids, i: 0, hist: [], n: { keep: 0, done: 0, cold: 0, trash: 0 } };
+    renderTana(); $('#tana').classList.add('show');
+  }
+  function renderTana() {
+    const { ids, i, n } = tana, total = ids.length;
+    $('#tanaProg').style.width = Math.round(i / total * 100) + '%';
+    $('#tanaBack').disabled = !tana.hist.length;
+    if (i >= total) {
+      $('#tanaTitle').textContent = '棚卸し';
+      $('#tanaBody').innerHTML = '<div class="tana-end"><b>🎉</b><h4>おつかれさま！ ' + total + '件 見直しました</h4><p>残す ' + n.keep + '　完了 ' + n.done + '<br>❄ COLD ' + n.cold + '　ゴミ箱 ' + n.trash + '</p><button id="tanaDone">受け箱に戻る</button></div>';
+      try { localStorage.setItem(TANA_KEY, String(Date.now())); } catch (_) {}
+      return;
+    }
+    const it = state.items.find((x) => x.id === ids[i]);
+    if (!it || statusOf(it) !== 'inbox') { tana.i++; return renderTana(); }
+    $('#tanaTitle').textContent = '棚卸し　' + (i + 1) + ' / ' + total;
+    const d = daysAgo(it.createdAt);
+    $('#tanaBody').innerHTML = '<div class="tana-card" id="tanaCard"><div class="tt">' + (it.fav ? '★ ' : '') + esc(it.title) + '</div><div class="tm">登録 ' + md(it.createdAt) + '（<b>' + (d ? d + '日前' : 'きょう') + '</b>）</div></div>'
+      + '<p class="tana-q">これ、まだ気になる？</p>'
+      + '<div class="tana-acts"><button class="keep" data-ta="keep">残す</button><button data-ta="done">✓ 完了</button><button class="cold" data-ta="cold">❄ COLD</button><button class="trash" data-ta="trash">ゴミ箱</button></div>';
+  }
+  async function tanaAct(act) {
+    const it = state.items.find((x) => x.id === tana.ids[tana.i]); if (!it) return;
+    const before = { status: it.status, doneAt: it.doneAt, trashedAt: it.trashedAt, coldAt: it.coldAt, updatedAt: it.updatedAt };
+    tana.hist.push({ id: it.id, before, act }); tana.n[act]++;
+    if (act !== 'keep') {
+      const now = Date.now(); it.status = act; it.updatedAt = now;
+      if (act === 'done') it.doneAt = now; if (act === 'trash') it.trashedAt = now; if (act === 'cold') it.coldAt = now;
+      await put('items', it);
+    }
+    const card = $('#tanaCard'); if (card) card.classList.add('out');
+    setTimeout(() => { tana.i++; renderTana(); }, 160);
+  }
+  async function tanaUndo() {
+    const h = tana.hist.pop(); if (!h) return;
+    const it = state.items.find((x) => x.id === h.id);
+    if (it && h.act !== 'keep') { Object.assign(it, h.before); if (!h.before.status) delete it.status; it.updatedAt = Date.now(); await put('items', it); }
+    tana.n[h.act]--; tana.i = tana.ids.indexOf(h.id); renderTana();
+  }
+  function closeTana() { $('#tana').classList.remove('show'); tana = null; render(); }
+  $('#tanaBody').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ta]'); if (b && tana) { tanaAct(b.dataset.ta); return; }
+    if (e.target.closest('#tanaDone')) closeTana();
+  });
+  $('#tanaBack').onclick = () => { if (tana) tanaUndo(); };
+  $('#tanaClose').onclick = closeTana;
 
   // ---------- お気に入り・戻す・書き直し ----------
   let armedId = null, armedT = null;
